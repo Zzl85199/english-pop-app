@@ -149,6 +149,25 @@ input,textarea{font-family:inherit;font-size:16px;color:var(--ink)}
 .istop .info .zh{font-size:12px;color:var(--muted);font-weight:700}
 .back-link{background:none;border:none;color:var(--muted);font-weight:800;font-size:13px;padding:6px 0}
 
+/* ---------- Rewards center (gacha / shop / collection) ---------- */
+.reward-tabs{display:flex;gap:8px;margin:14px 0}
+.rtab{flex:1;font-family:var(--font-display);font-weight:800;font-size:13px;
+  background:var(--card);border:2px solid var(--ink);border-radius:14px;padding:8px 4px;box-shadow:0 3px 0 var(--ink)}
+.rtab.sel{background:var(--yellow);transform:translateY(3px);box-shadow:none}
+.reward-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px}
+.reward-card{background:var(--card);border:2px solid var(--ink);border-radius:14px;padding:10px 6px;
+  text-align:center;box-shadow:0 3px 0 var(--ink)}
+.reward-card .ric{font-size:30px}
+.reward-card .rname{font-size:12px;font-weight:800;margin-top:4px;line-height:1.2}
+.reward-card .rrare{font-size:10px;font-weight:800;color:var(--muted);margin:2px 0 6px}
+.reward-card.rarity-rare{border-color:#2E86C1}
+.reward-card.rarity-epic{border-color:#7C5CFF}
+.reward-card.rarity-legendary{border-color:#FFC53D;box-shadow:0 3px 0 var(--ink),0 0 10px #FFC53D66}
+.reward-card.equipped{background:var(--teal-soft);border-color:var(--teal)}
+.card.rarity-rare{border-color:#2E86C1}
+.card.rarity-epic{border-color:#7C5CFF}
+.card.rarity-legendary{border-color:#FFC53D;box-shadow:0 4px 0 var(--ink),0 0 16px #FFC53D66}
+
 /* ---------- Quiz / choices ---------- */
 .choice{display:block;width:100%;text-align:left;background:var(--card);border:2px solid var(--ink);
   border-radius:14px;box-shadow:0 3px 0 var(--ink);padding:12px 14px;margin:10px 0;font-size:15px;font-weight:700;transition:transform .08s}
@@ -258,6 +277,7 @@ footer.mini{color:var(--muted);font-size:12px;text-align:center;padding:24px 0;f
   <div id="hud" class="hidden">
     <div class="who"><span class="av" id="hud-av">🦊</span><span id="hud-name">同學</span></div>
     <div class="spacer"></div>
+    <button class="pill" id="hud-gift" title="獎勵中心" style="background:var(--yellow-soft)">🎁</button>
     <div class="pill xp">⭐ <span id="hud-xp">0</span></div>
     <div class="pill candy">🍬 <span id="hud-candy">0</span></div>
     <div class="pill streak">🔥 <span id="hud-streak">0</span></div>
@@ -404,6 +424,92 @@ const LEVELS = [
   {tier:4, code:"B2+", name:"高峰探索", icon:"⛰️", cls:"pink"}
 ];
 
+/* ============ 🎁 獎勵池（扭蛋機 + 商店 共用，共 50 種）============
+   type: theme/frame/title 是「裝飾類」，可以套用；badge/sticker 是「收藏類」，純展示
+   rarity 決定扭蛋機率權重，price 決定商店價格
+=========================================================================== */
+const REWARDS = [
+  // ---- 主題色（8）----
+  {id:"th_mint",    type:"theme", name:"薄荷綠主題",   emoji:"🌿", rarity:"common",   price:25},
+  {id:"th_lavender",type:"theme", name:"薰衣草主題",   emoji:"💜", rarity:"common",   price:25},
+  {id:"th_ocean",   type:"theme", name:"海洋藍主題",   emoji:"🌊", rarity:"rare",     price:50},
+  {id:"th_sunset",  type:"theme", name:"日落橘主題",   emoji:"🌅", rarity:"rare",     price:50},
+  {id:"th_cherry",  type:"theme", name:"櫻花粉主題",   emoji:"🌸", rarity:"rare",     price:55},
+  {id:"th_galaxy",  type:"theme", name:"星空主題",     emoji:"🌌", rarity:"epic",     price:110},
+  {id:"th_candy",   type:"theme", name:"糖果彩虹主題", emoji:"🍬", rarity:"epic",     price:120},
+  {id:"th_gold",    type:"theme", name:"尊爵金主題",   emoji:"👑", rarity:"legendary",price:250},
+  // ---- 頭像框（8）----
+  {id:"fr_wood",   type:"frame", name:"木頭頭像框",   emoji:"🪵", rarity:"common",   price:20},
+  {id:"fr_silver", type:"frame", name:"銀色頭像框",   emoji:"⚪", rarity:"common",   price:25},
+  {id:"fr_bronze", type:"frame", name:"銅色頭像框",   emoji:"🟤", rarity:"common",   price:20},
+  {id:"fr_leaf",   type:"frame", name:"綠葉頭像框",   emoji:"🍃", rarity:"common",   price:22},
+  {id:"fr_gold",   type:"frame", name:"金色頭像框",   emoji:"🟡", rarity:"rare",     price:60},
+  {id:"fr_crystal",type:"frame", name:"水晶頭像框",   emoji:"💎", rarity:"rare",     price:65},
+  {id:"fr_fire",   type:"frame", name:"火焰頭像框",   emoji:"🔥", rarity:"epic",     price:100},
+  {id:"fr_rainbow",type:"frame", name:"彩虹頭像框",   emoji:"🌈", rarity:"epic",     price:110},
+  // ---- 稱號（10）----
+  {id:"ti_followup", type:"title", name:"追問句大師",   emoji:"💬", rarity:"common",   price:15},
+  {id:"ti_wordcol",   type:"title", name:"單字收藏家",   emoji:"🍭", rarity:"common",   price:15},
+  {id:"ti_combo",     type:"title", name:"連擊王",       emoji:"⚡", rarity:"common",   price:20},
+  {id:"ti_grammar",   type:"title", name:"文法偵探",     emoji:"🔍", rarity:"common",   price:20},
+  {id:"ti_earlybird", type:"title", name:"早起讀書鳥",   emoji:"🐦", rarity:"common",   price:18},
+  {id:"ti_speaker",   type:"title", name:"口說挑戰者",   emoji:"🎤", rarity:"rare",     price:45},
+  {id:"ti_chatpro",   type:"title", name:"對話高手",     emoji:"🗣️", rarity:"rare",     price:45},
+  {id:"ti_writer",    type:"title", name:"寫作達人",     emoji:"✍️", rarity:"rare",     price:50},
+  {id:"ti_hunter",    type:"title", name:"任務獵人",     emoji:"🌍", rarity:"epic",     price:90},
+  {id:"ti_legend",    type:"title", name:"傳說學霸",     emoji:"👑", rarity:"legendary",price:220},
+  // ---- 收藏徽章（14）----
+  {id:"bg_fox",   type:"badge", name:"狐狸徽章",   emoji:"🦊", rarity:"common",   price:18},
+  {id:"bg_bear",  type:"badge", name:"熊熊徽章",   emoji:"🐻", rarity:"common",   price:18},
+  {id:"bg_rabbit",type:"badge", name:"兔兔徽章",   emoji:"🐰", rarity:"common",   price:18},
+  {id:"bg_cat",   type:"badge", name:"貓咪徽章",   emoji:"🐱", rarity:"common",   price:18},
+  {id:"bg_dog",   type:"badge", name:"狗狗徽章",   emoji:"🐶", rarity:"common",   price:18},
+  {id:"bg_frog",  type:"badge", name:"青蛙徽章",   emoji:"🐸", rarity:"common",   price:18},
+  {id:"bg_panda", type:"badge", name:"貓熊徽章",   emoji:"🐼", rarity:"common",   price:18},
+  {id:"bg_koala", type:"badge", name:"無尾熊徽章", emoji:"🐨", rarity:"common",   price:18},
+  {id:"bg_unicorn",type:"badge",name:"獨角獸徽章", emoji:"🦄", rarity:"rare",     price:48},
+  {id:"bg_tiger", type:"badge", name:"老虎徽章",   emoji:"🐯", rarity:"rare",     price:48},
+  {id:"bg_lion",  type:"badge", name:"獅子徽章",   emoji:"🦁", rarity:"rare",     price:48},
+  {id:"bg_star",  type:"badge", name:"星星勳章",   emoji:"⭐", rarity:"epic",     price:95},
+  {id:"bg_trophy",type:"badge", name:"冠軍勳章",   emoji:"🏆", rarity:"epic",     price:100},
+  {id:"bg_diamond",type:"badge",name:"鑽石勳章",   emoji:"💎", rarity:"legendary",price:230},
+  // ---- 收藏貼紙（10）----
+  {id:"st_candy",  type:"sticker", name:"糖果貼紙",   emoji:"🍬", rarity:"common", price:12},
+  {id:"st_donut",  type:"sticker", name:"甜甜圈貼紙", emoji:"🍩", rarity:"common", price:12},
+  {id:"st_balloon",type:"sticker", name:"氣球貼紙",   emoji:"🎈", rarity:"common", price:12},
+  {id:"st_cloud",  type:"sticker", name:"雲朵貼紙",   emoji:"☁️", rarity:"common", price:12},
+  {id:"st_sparkle",type:"sticker", name:"閃亮貼紙",   emoji:"✨", rarity:"common", price:12},
+  {id:"st_rainbow",type:"sticker", name:"彩虹貼紙",   emoji:"🌈", rarity:"common", price:15},
+  {id:"st_party",  type:"sticker", name:"派對貼紙",   emoji:"🎉", rarity:"rare",   price:35},
+  {id:"st_clover", type:"sticker", name:"幸運草貼紙", emoji:"🍀", rarity:"rare",   price:35},
+  {id:"st_flame",  type:"sticker", name:"火焰貼紙",   emoji:"🔥", rarity:"rare",   price:38},
+  {id:"st_superstar",type:"sticker",name:"超級星星貼紙",emoji:"🌟",rarity:"epic",  price:80}
+];
+
+/* 主題色盤：id 對應要覆寫的 CSS 變數（套用時整個網站配色會換掉） */
+const THEME_PALETTES = {
+  th_mint:    {pink:"#3B9E6B", "pink-soft":"#DFF3E8", yellow:"#FFC53D", "yellow-soft":"#FFF3D6", teal:"#17B9A0", "teal-soft":"#DDF6F1", purple:"#4C9E7C", "purple-soft":"#E2F3EA", paper:"#EFF7F1"},
+  th_lavender:{pink:"#9B6BD6", "pink-soft":"#EFE6FB", yellow:"#FFC53D", "yellow-soft":"#FFF3D6", teal:"#7C5CFF", "teal-soft":"#EAE4FF", purple:"#7C5CFF", "purple-soft":"#EAE4FF", paper:"#F3EFFA"},
+  th_ocean:   {pink:"#2E86C1", "pink-soft":"#DCEEFA", yellow:"#FFC53D", "yellow-soft":"#FFF3D6", teal:"#17A2B8", "teal-soft":"#DDF6F6", purple:"#1B4F72", "purple-soft":"#DDE9F2", paper:"#EAF4FA"},
+  th_sunset:  {pink:"#FF6F3C", "pink-soft":"#FFE6DA", yellow:"#FFC53D", "yellow-soft":"#FFF3D6", teal:"#E85D75", "teal-soft":"#FCE4E9", purple:"#B7472A", "purple-soft":"#F6E1DA", paper:"#FFF3EA"},
+  th_cherry:  {pink:"#FF5D8F", "pink-soft":"#FFE3EC", yellow:"#FFC53D", "yellow-soft":"#FFF3D6", teal:"#17B9A0", "teal-soft":"#DDF6F1", purple:"#D6568A", "purple-soft":"#FBE3EC", paper:"#FFF0F4"},
+  th_galaxy:  {pink:"#7A5CFA", "pink-soft":"#E7E1FE", yellow:"#FFD86B", "yellow-soft":"#FFF3D6", teal:"#3D5AFE", "teal-soft":"#E1E6FE", purple:"#2E1F6B", "purple-soft":"#E1DBF2", paper:"#EDEAFA"},
+  th_candy:   {pink:"#FF5D8F", "pink-soft":"#FFE3EC", yellow:"#FFC53D", "yellow-soft":"#FFF3D6", teal:"#17B9A0", "teal-soft":"#DDF6F1", purple:"#7C5CFF", "purple-soft":"#EAE4FF", paper:"#FFF5FA"},
+  th_gold:    {pink:"#D4A017", "pink-soft":"#FBF0D2", yellow:"#FFD700", "yellow-soft":"#FFF6CC", teal:"#B8860B", "teal-soft":"#F5EBCF", purple:"#8B6914", "purple-soft":"#F1E5C6", paper:"#FBF6E8"}
+};
+/* 頭像框樣式：id 對應要套在頭像上的 inline style */
+const FRAME_STYLES = {
+  fr_wood:    "border:3px solid #8B5A2B",
+  fr_silver:  "border:3px solid #C0C0C0",
+  fr_bronze:  "border:3px solid #B08D57",
+  fr_leaf:    "border:3px solid #3B9E6B",
+  fr_gold:    "border:3px solid #FFD700;box-shadow:0 0 6px #FFD700",
+  fr_crystal: "border:3px solid #9FE1EA;box-shadow:0 0 8px #9FE1EA",
+  fr_fire:    "border:3px solid #FF5D3D;box-shadow:0 0 10px #FF8A50",
+  fr_rainbow: "border:3px solid #FF5D8F;box-shadow:0 0 8px #FFC53D, 0 0 4px #17B9A0"
+};
+function rarityLabel(r){ return {common:"一般",rare:"稀有",epic:"史詩",legendary:"傳說"}[r]||r; }
+
 /* ============ 從 Google Sheet 載入 Issue（CONFIG.sheetCsvUrl） ============
    老師只要在 Google Sheet 貼上「一列 = 一期」的內容，發布成 CSV 後，
    這裡會自動解析成跟上面 ISSUES 一樣的結構。詳細欄位格式請見 docs/sheet-column-guide.md
@@ -543,8 +649,12 @@ const store = (()=>{ let mem={};
   };})();
 
 let S = store.get("englishpop_v1", {
-  student:null, xp:0, candy:0, streak:0, lastDay:"", badges:[], issues:{}
+  student:null, xp:0, candy:0, streak:0, lastDay:"", badges:[], issues:{},
+  pity:0, collection:{owned:{}, equipped:{theme:null, frame:null, title:null}}
 });
+if(!S.collection) S.collection={owned:{}, equipped:{theme:null, frame:null, title:null}};
+if(!S.collection.equipped) S.collection.equipped={theme:null, frame:null, title:null};
+if(S.pity===undefined) S.pity=0;
 function save(){ store.set("englishpop_v1", S); }
 function issueProg(id){ if(!S.issues[id]) S.issues[id]={done:{}}; return S.issues[id]; }
 
@@ -566,10 +676,28 @@ function touchStreak(){
 }
 function updateHUD(){
   $("#hud-av").textContent = S.student?S.student.av:"🙂";
-  $("#hud-name").textContent = S.student?S.student.name:"";
+  $("#hud-name").textContent = (S.student?S.student.name:"") + (equippedTitleLabel()?(" "+equippedTitleLabel()):"");
   $("#hud-xp").textContent = S.xp;
   $("#hud-candy").textContent = S.candy;
   $("#hud-streak").textContent = S.streak;
+  const frameId=S.collection.equipped.frame;
+  $("#hud-av").setAttribute("style", frameId&&FRAME_STYLES[frameId] ? ("border-radius:50%;"+FRAME_STYLES[frameId]) : "");
+}
+function equippedTitleLabel(){
+  const id=S.collection.equipped.title;
+  const t=id&&REWARDS.find(r=>r.id===id);
+  return t?(t.emoji+" "+t.name):"";
+}
+function applyEquipped(){
+  const root=document.documentElement.style;
+  const themeId=S.collection.equipped.theme;
+  const palette=themeId&&THEME_PALETTES[themeId];
+  ["pink","yellow","teal","purple","paper"].forEach(k=>{
+    root.removeProperty("--"+k); root.removeProperty("--"+k+"-soft");
+  });
+  if(palette){
+    Object.keys(palette).forEach(k=>root.setProperty("--"+k, palette[k]));
+  }
 }
 function addXP(n){ S.xp+=n; save(); updateHUD(); }
 function flyCandy(fromEl, n){
@@ -1457,6 +1585,119 @@ function renderMission(issue){
   };
 }
 
+/* ============ 🎁 獎勵中心：扭蛋 / 商店 / 收藏 ============ */
+const GACHA_COST = 20;
+function rollRarity(){
+  const r=Math.random()*100;
+  if(r<2) return "legendary";
+  if(r<12) return "epic";
+  if(r<40) return "rare";
+  return "common";
+}
+function gachaDraw(){
+  if(S.candy<GACHA_COST){ toast("糖果不夠喔！完成任務賺糖果吧 🍬"); return null; }
+  S.candy-=GACHA_COST;
+  let rarity=rollRarity();
+  S.pity=(S.pity||0)+1;
+  if(rarity==="common" && S.pity>=10){ rarity = Math.random()<0.5?"epic":"rare"; }
+  if(rarity!=="common") S.pity=0;
+  const pool=REWARDS.filter(r=>r.rarity===rarity);
+  const item=pool[Math.floor(Math.random()*pool.length)];
+  let refunded=0;
+  if(S.collection.owned[item.id]){ refunded=Math.round(item.price*0.5); S.candy+=refunded; }
+  else S.collection.owned[item.id]=true;
+  save(); updateHUD();
+  return {item, refunded};
+}
+function buyReward(id){
+  const item=REWARDS.find(r=>r.id===id); if(!item) return;
+  if(S.collection.owned[id]){ toast("你已經有這個了！"); return; }
+  if(S.candy<item.price){ toast("糖果不夠喔！完成任務賺糖果吧 🍬"); return; }
+  S.candy-=item.price; S.collection.owned[id]=true; save(); updateHUD();
+  toast("🎉 兌換成功："+item.name);
+  renderRewards("shop");
+}
+function equipReward(id){
+  const item=REWARDS.find(r=>r.id===id); if(!item || !S.collection.owned[id]) return;
+  if(!["theme","frame","title"].includes(item.type)) return;
+  S.collection.equipped[item.type] = (S.collection.equipped[item.type]===id) ? null : id;
+  save(); applyEquipped(); updateHUD();
+  renderRewards("collection");
+}
+let REWARD_TAB="gacha";
+function renderRewards(tab){
+  REWARD_TAB = tab || REWARD_TAB;
+  $("#hud").classList.remove("hidden"); updateHUD();
+  const ownedCount=Object.keys(S.collection.owned).length;
+  stage().innerHTML = `
+    <button class="back-link" id="rw-back">← 回選單</button>
+    <div class="card center" style="padding:14px 10px">
+      <div class="disp" style="font-size:20px;font-weight:800">🎁 獎勵中心</div>
+      <div class="zh" style="color:var(--muted);font-weight:700;font-size:12px">已收集 ${ownedCount} / ${REWARDS.length} 種</div>
+    </div>
+    <div class="reward-tabs">
+      <button class="rtab ${REWARD_TAB==='gacha'?'sel':''}" data-t="gacha">🎰 扭蛋</button>
+      <button class="rtab ${REWARD_TAB==='shop'?'sel':''}" data-t="shop">🛍️ 商店</button>
+      <button class="rtab ${REWARD_TAB==='collection'?'sel':''}" data-t="collection">📦 收藏</button>
+    </div>
+    <div id="rw-body"></div>
+    <footer class="mini">English POP! · 免費非營利英語學習</footer>`;
+  $("#rw-back").onclick=()=>renderLevels();
+  document.querySelectorAll(".rtab").forEach(b=>b.onclick=()=>renderRewards(b.dataset.t));
+  if(REWARD_TAB==="shop") renderShopBody();
+  else if(REWARD_TAB==="collection") renderCollectionBody();
+  else renderGachaBody();
+}
+function renderGachaBody(){
+  $("#rw-body").innerHTML = `
+    <div class="card center">
+      <div style="font-size:56px">🎰</div>
+      <p style="font-weight:800">扭一次 ${GACHA_COST} 🍬（目前有 ${S.candy} 🍬）</p>
+      <p style="font-size:12px;color:var(--muted);font-weight:700">機率：一般 60% · 稀有 28% · 史詩 10% · 傳說 2%<br>連續 10 抽沒中稀有以上，第 10 抽必出稀有／史詩！</p>
+      <button class="btn pink block mt16" id="gacha-go">🎰 扭一下！</button>
+    </div>
+    <div id="gacha-result"></div>`;
+  $("#gacha-go").onclick=()=>{
+    const res=gachaDraw(); if(!res) return;
+    const r=res.item;
+    if(r.rarity==="epic"||r.rarity==="legendary") confetti();
+    $("#gacha-result").innerHTML = `
+      <div class="card center rarity-${r.rarity}">
+        <div style="font-size:52px">${r.emoji}</div>
+        <div style="font-weight:800;font-size:18px">${esc(r.name)}</div>
+        <span class="tag mt8">${rarityLabel(r.rarity)}</span>
+        ${res.refunded?`<p style="font-size:12px;color:var(--muted);margin-top:8px">已擁有，退還 ${res.refunded} 🍬</p>`:`<p style="font-size:12px;color:var(--teal);font-weight:800;margin-top:8px">🎉 新獲得！收藏冊看得到</p>`}
+      </div>`;
+  };
+}
+function renderShopBody(){
+  $("#rw-body").innerHTML = `<div class="reward-grid">${REWARDS.map(r=>{
+    const owned=!!S.collection.owned[r.id];
+    return `<div class="reward-card rarity-${r.rarity}">
+      <div class="ric">${r.emoji}</div>
+      <div class="rname">${esc(r.name)}</div>
+      <div class="rrare">${rarityLabel(r.rarity)}</div>
+      ${owned?'<span class="tag">已擁有</span>':`<button class="btn small teal" data-buy="${r.id}">${r.price} 🍬</button>`}
+    </div>`;
+  }).join("")}</div>`;
+  document.querySelectorAll("[data-buy]").forEach(b=>b.onclick=()=>buyReward(b.dataset.buy));
+}
+function renderCollectionBody(){
+  const owned=REWARDS.filter(r=>S.collection.owned[r.id]);
+  if(!owned.length){ $("#rw-body").innerHTML=`<p class="center mt24" style="color:var(--muted);font-weight:700">還沒有收藏，快去扭蛋或商店逛逛！</p>`; return; }
+  $("#rw-body").innerHTML = `<div class="reward-grid">${owned.map(r=>{
+    const equipable=["theme","frame","title"].includes(r.type);
+    const equipped=equipable && S.collection.equipped[r.type]===r.id;
+    return `<div class="reward-card rarity-${r.rarity} ${equipped?'equipped':''}">
+      <div class="ric">${r.emoji}</div>
+      <div class="rname">${esc(r.name)}</div>
+      <div class="rrare">${rarityLabel(r.rarity)}</div>
+      ${equipable?`<button class="btn small ${equipped?'pink':'ghost'}" data-equip="${r.id}">${equipped?'✓ 使用中':'套用'}</button>`:''}
+    </div>`;
+  }).join("")}</div>`;
+  document.querySelectorAll("[data-equip]").forEach(b=>b.onclick=()=>equipReward(b.dataset.equip));
+}
+
 /* ============ 📄 匯出 PDF 給老師討論 ============
    中文和 emoji 用 jsPDF 內建字型畫文字會變亂碼（PDF 標準字型不含中文字），
    所以改成：先把報告排版成一段 HTML，用 html2canvas 把它「畫成圖片」
@@ -1536,6 +1777,8 @@ function exportIssuePDF(issue){
 
 /* ============ 啟動 ============ */
 updateHUD();
+applyEquipped();
+$("#hud-gift").addEventListener("click",()=>renderRewards());
 loadIssuesFromSheet().then(rows=>{
   if(rows && rows.length){ ISSUES.length=0; ISSUES.push(...rows); CURRENT_ISSUE=ISSUES[0]; }
   if(S.student) renderLevels();
