@@ -986,9 +986,27 @@ function sectionShell(issue, key, bodyHTML){
 }
 function renderSection(issue, key){
   window.scrollTo(0,0);
-  ({warmup:renderWarmup, cover:renderCover, reading:renderReading, candy:renderCandy,
+  const renderers={warmup:renderWarmup, cover:renderCover, reading:renderReading, candy:renderCandy,
     sayit:renderSayIt, grammar:renderGrammar, speakup:renderSpeakUp, roleplay:renderRoleplay,
-    writing:renderWriting, quiz:renderQuiz, mission:renderMission})[key](issue);
+    writing:renderWriting, quiz:renderQuiz, mission:renderMission};
+  try{
+    renderers[key](issue);
+  }catch(err){
+    console.error("章節渲染失敗：", key, err);
+    const s=SECTIONS.find(x=>x.key===key);
+    stage().innerHTML = `
+      <button class="back-link" id="err-back">← 回關卡地圖</button>
+      <div class="card center">
+        <div style="font-size:44px">⚠️</div>
+        <h2 class="disp">這一關的內容格式跑掉了</h2>
+        <p style="font-weight:700">「${esc(issue.title)}」的 <b>${s?esc(s.en):key}</b> 這個章節，
+        在 Google Sheet 裡的內容可能少了換行或分隔符號，網站解析不出來。</p>
+        <p style="font-size:13px;color:var(--muted);font-weight:700;margin-top:8px">
+          請打開 Google Sheet，檢查這一列的 <b>${s?esc(s.en):key}</b> 欄位，確認每個項目之間都有真正的換行
+          （Windows 按 Ctrl+Enter、Mac 按 Cmd+Enter 才能在儲存格內換行），存檔後重新整理這個頁面即可。</p>
+      </div>`;
+    $("#err-back").addEventListener("click",()=>renderMap(issue));
+  }
 }
 
 /* ============ 慶祝畫面 ============ */
@@ -1216,7 +1234,7 @@ function renderCandy(issue){
 function renderSayIt(issue){
   const ex=issue.expressions; let doneCount=0; const doneSet=new Set();
   sectionShell(issue,"sayit",`
-    <div class="card"><p style="font-weight:700">5 句超實用口語！每一句：先按 🔊 聽示範，再${ASR?"按 🎙️ 大聲跟讀，看看能拿幾顆星":"大聲跟讀 3 次，然後按「我唸完了」"}。</p></div>
+    <div class="card"><p style="font-weight:700">5 句超實用口語！每一句：先按 🔊 聽示範，再${ASR?"按 🎙️ 大聲跟讀，看看能拿幾顆星":"大聲跟讀 3 次，然後按「我唸完了」"}。不方便開口的話，也可以改用打字練習。</p></div>
     <div id="si-list"></div>
     <button class="btn pink block hidden" id="si-fin">全部練完，完成！</button>`);
   $("#si-list").innerHTML = ex.map((e,i)=>`
@@ -1227,9 +1245,14 @@ function renderSayIt(issue){
       </div>
       <div style="font-size:13px;color:var(--muted);font-weight:700;margin-top:6px">🕐 ${esc(e.when)}</div>
       <div class="ex">A: ${esc(e.exA)}<br>B: ${esc(e.exB)} <button class="speak-btn si-ex" style="width:28px;height:28px;font-size:12px">🔊</button></div>
-      <div class="mt8" style="display:flex;align-items:center;gap:10px">
+      <div class="mt8" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         ${ASR?'<button class="btn small teal si-mic">🎙️ 跟讀挑戰</button>':'<button class="btn small teal si-self">✅ 我唸完了</button>'}
+        <button class="btn small ghost si-type">⌨️ 麥克風不方便？改用打字</button>
         <span class="stars si-stars"></span>
+      </div>
+      <div class="mt8 hidden si-typebox">
+        <input class="name-input si-typein" placeholder="Type the sentence here...">
+        <button class="btn small pink mt8 si-typesubmit">確認</button>
       </div>
       <div class="transcript hidden si-heard"></div>
     </div>`).join("");
@@ -1240,6 +1263,11 @@ function renderSayIt(issue){
     if(ev.target.closest(".si-tts")) speak(e.en);
     if(ev.target.closest(".si-ex")) speak(e.exA+" ... "+e.exB);
     if(ev.target.closest(".si-self")){ markDone(card,i,3); }
+    if(ev.target.closest(".si-type")){
+      card.querySelector(".si-typebox").classList.toggle("hidden");
+      const input=card.querySelector(".si-typein"); if(input) input.focus();
+    }
+    if(ev.target.closest(".si-typesubmit")) submitTyped(card,i,e);
     if(ev.target.closest(".si-mic")){
       const btn=ev.target.closest(".si-mic"), heard=card.querySelector(".si-heard");
       if(btn._rec){ btn._rec.stop(); return; }
@@ -1249,12 +1277,28 @@ function renderSayIt(issue){
         fin=>{ btn._rec=null; btn.textContent="🎙️ 跟讀挑戰";
           const sim=similarity(e.en, fin);
           const stars= sim>=0.8?3 : sim>=0.5?2 : sim>0?1:0;
-          if(stars===0){ heard.textContent="沒聽清楚，再試一次！（也可以說慢一點）"; return; }
+          if(stars===0){ heard.textContent="沒聽清楚，再試一次！（也可以改用打字練習）"; return; }
           markDone(card,i,stars);
         },
-        ()=>{ btn._rec=null; btn.textContent="🎙️ 跟讀挑戰"; toast("麥克風沒有回應，可改用自評模式"); heard.innerHTML='<button class="btn small ghost si-self">✅ 我唸完了（自評）</button>'; });
+        ()=>{ btn._rec=null; btn.textContent="🎙️ 跟讀挑戰"; toast("麥克風沒有回應，可以改用打字練習"); heard.innerHTML='<button class="btn small ghost si-self">✅ 我唸完了（自評）</button>'; });
     }
   });
+  list.addEventListener("keydown",ev=>{
+    if(ev.key!=="Enter") return;
+    const input=ev.target.closest(".si-typein"); if(!input) return;
+    const card=ev.target.closest(".expr-card"); const i=+card.dataset.i, e=ex[i];
+    submitTyped(card,i,e);
+  });
+  function submitTyped(card,i,e){
+    const input=card.querySelector(".si-typein");
+    const val=input.value.trim();
+    if(!val){ toast("先打打看這句英文再確認喔！"); return; }
+    const sim=similarity(e.en, val);
+    const stars= sim>=0.8?3 : sim>=0.5?2 : sim>0?1:0;
+    if(stars===0){ toast("再看一次句子，試著打出完整的句子！"); return; }
+    markDone(card,i,stars);
+    card.querySelector(".si-typebox").classList.add("hidden");
+  }
   function markDone(card,i,stars){
     card.querySelector(".si-stars").textContent="⭐".repeat(stars);
     if(!doneSet.has(i)){ doneSet.add(i); doneCount++; toast("完成 "+doneCount+"/"+ex.length+" 句！"); }
