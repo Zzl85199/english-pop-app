@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="config.js"></script>
 <style>
 :root{
@@ -273,7 +274,7 @@ footer.mini{color:var(--muted);font-size:12px;text-align:center;padding:24px 0;f
    ◆ CONFIG.progressWebhook 之後接 Apps Script，回傳學生進度給老師後台
    ================================================================ */
 const CONFIG = Object.assign({
-  sheetCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRlJ1J_WtUax1CWaAZKVGooYoRX9Zxz01lUZTUsOM-Ts7RSgkSTO6qbabdZPtOOCWJKQ75cIMXnIUpW/pub?gid=0&single=true&output=csv",        // TODO: Google Sheet 發布網址
+  sheetCsvUrl: "",        // TODO: Google Sheet 發布網址
   progressWebhook: ""     // TODO: Apps Script Web App 網址
 }, window.ENGLISHPOP_CONFIG || {});
 
@@ -1456,62 +1457,81 @@ function renderMission(issue){
   };
 }
 
-/* ============ 📄 匯出 PDF 給老師討論 ============ */
+/* ============ 📄 匯出 PDF 給老師討論 ============
+   中文和 emoji 用 jsPDF 內建字型畫文字會變亂碼（PDF 標準字型不含中文字），
+   所以改成：先把報告排版成一段 HTML，用 html2canvas 把它「畫成圖片」
+   （跟網頁上看到的中文、emoji 完全一樣），再把圖片切頁放進 PDF。
+================================================================= */
 function exportIssuePDF(issue){
-  if(!window.jspdf){ toast("PDF 元件載入中，請稍後再試一次"); return; }
+  if(!window.jspdf || !window.html2canvas){ toast("PDF 元件載入中，請稍後再試一次"); return; }
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({unit:"pt", format:"a4"});
-  const marginX=48, pageH=780; let y=56;
-  function ensure(need){ if(y+need>pageH){ doc.addPage(); y=56; } }
-  function title(t,size){ ensure(size?size+14:22); doc.setFont("helvetica","bold"); doc.setFontSize(size||15);
-    doc.text(String(t),marginX,y); y+=(size||15)+10; doc.setFont("helvetica","normal"); doc.setFontSize(11); }
-  function line(t,indent){ const wrapped=doc.splitTextToSize(String(t||""), 500-(indent||0));
-    wrapped.forEach(l=>{ ensure(15); doc.text(l,marginX+(indent||0),y); y+=15; }); }
-  function spacer(n){ y+=(n||8); }
-
-  title(`English POP! · Issue ${issue.id} — ${issue.title}`,16);
-  line(`學生：${S.student?S.student.name:"—"}　等級：${issue.level}　匯出時間：${new Date().toLocaleString("zh-TW")}`);
   const p=issueProg(issue.id);
   const doneCount=SECTIONS.filter(s=>p.done[s.key]).length;
-  line(`完成度：${doneCount} / ${SECTIONS.length} 關 　XP：${S.xp}　連續天數：${S.streak}`);
-  spacer(14);
+
+  function row(key,rec){
+    switch(key){
+      case "warmup":
+        return (rec.answers||[]).map((ans,i)=>`
+          <div style="font-size:14px;font-weight:700;margin-top:8px">Q${i+1}. ${esc(issue.warmup.questions[i]?issue.warmup.questions[i].q:"")}</div>
+          <div style="font-size:14px;margin:2px 0 0 16px;color:#333">→ ${esc(ans||"(未作答)")}</div>`).join("");
+      case "cover": return `<div style="font-size:14px">已閱讀本期文章</div>`;
+      case "reading": return `<div style="font-size:14px">答對 ${rec.score!=null?rec.score:"-"} / ${issue.reading.length} 題（最佳連擊 ${rec.best||0}）</div>`;
+      case "candy": return `<div style="font-size:14px">單字配對完成，找出 ${rec.score||0} 組</div>`;
+      case "sayit": return `<div style="font-size:14px">跟讀練習完成，共 ${rec.score||0} 句</div>`;
+      case "grammar": return `<div style="font-size:14px">文法拼句挑戰答對 ${rec.score!=null?rec.score:"-"} 題</div>`;
+      case "speakup": return `<div style="font-size:14px">60 秒口說完成，講了 ${rec.seconds||0} 秒，命中 ${rec.targetsHit||0} 個目標句型</div>`;
+      case "roleplay": return `<div style="font-size:14px">情境對話完成，好感度 ${rec.score!=null?rec.score:"-"} / ${rec.max||"-"}</div>`;
+      case "writing": return `<div style="font-size:14px;font-weight:700">學生寫作（${rec.words||0} 字）：</div>
+        <div style="font-size:14px;margin:2px 0 0 16px;white-space:pre-wrap;color:#333">${esc(rec.text||"(空白)")}</div>`;
+      case "quiz": return `<div style="font-size:14px">魔王測驗答對 ${rec.score!=null?rec.score:"-"} / ${issue.quiz.questions.length} 題</div>`;
+      case "mission": return Object.keys(rec.report||{}).map(q=>`
+          <div style="font-size:14px;font-weight:700;margin-top:8px">${esc(q)}</div>
+          <div style="font-size:14px;margin:2px 0 0 16px;color:#333">→ ${esc(rec.report[q]||"(未填寫)")}</div>`).join("");
+      default: return "";
+    }
+  }
+
+  let body = `
+    <div style="font-family:'Baloo 2','Noto Sans TC',sans-serif;font-size:24px;font-weight:800;color:#2B2440">English POP! · Issue ${esc(issue.id)} — ${esc(issue.title)}</div>
+    <div style="font-size:13px;color:#6E6684;font-weight:700;margin-top:8px">學生：${esc(S.student?S.student.name:"—")}　等級：${esc(issue.level)}　匯出時間：${new Date().toLocaleString("zh-TW")}</div>
+    <div style="font-size:13px;color:#6E6684;font-weight:700;margin-top:4px">完成度：${doneCount} / ${SECTIONS.length} 關　XP：${S.xp}　連續天數：${S.streak}</div>`;
 
   SECTIONS.forEach(s=>{
     const rec=p.done[s.key];
-    title(`${s.emoji} ${s.en}（${s.zh}）`);
-    if(!rec){ line("尚未完成這一關"); spacer(10); return; }
-    switch(s.key){
-      case "warmup":
-        (rec.answers||[]).forEach((a,i)=>{
-          line(`Q${i+1}. ${issue.warmup.questions[i]?issue.warmup.questions[i].q:""}`);
-          line(`→ ${a||"(未作答)"}`, 14); spacer(4); });
-        break;
-      case "cover":
-        line("已閱讀本期文章"); break;
-      case "reading":
-        line(`答對 ${rec.score!=null?rec.score:"-"} / ${issue.reading.length} 題（最佳連擊 ${rec.best||0}）`); break;
-      case "candy":
-        line(`單字配對完成，找出 ${rec.score||0} 組`); break;
-      case "sayit":
-        line(`跟讀練習完成，共 ${rec.score||0} 句`); break;
-      case "grammar":
-        line(`文法拼句挑戰答對 ${rec.score!=null?rec.score:"-"} 題`); break;
-      case "speakup":
-        line(`60 秒口說完成，講了 ${rec.seconds||0} 秒，命中 ${rec.targetsHit||0} 個目標句型`); break;
-      case "roleplay":
-        line(`情境對話完成，好感度 ${rec.score!=null?rec.score:"-"} / ${rec.max||"-"}`); break;
-      case "writing":
-        line(`學生寫作（${rec.words||0} 字）：`); line(rec.text||"(空白)", 14); break;
-      case "quiz":
-        line(`魔王測驗答對 ${rec.score!=null?rec.score:"-"} / ${issue.quiz.questions.length} 題`); break;
-      case "mission":
-        Object.keys(rec.report||{}).forEach(q=>{ line(q); line(`→ ${rec.report[q]||"(未填寫)"}`,14); spacer(4); });
-        break;
-    }
-    spacer(10);
+    body += `<div style="margin-top:20px;padding-top:12px;border-top:2px solid #E4DEF2">
+      <div style="font-size:16px;font-weight:800;color:#2B2440;margin-bottom:6px">${s.emoji} ${esc(s.en)}（${esc(s.zh)}）</div>
+      ${rec ? row(s.key,rec) : `<div style="font-size:13px;color:#999">尚未完成這一關</div>`}
+    </div>`;
   });
-  doc.save(`EnglishPOP_Issue${issue.id}_${(S.student&&S.student.name)||"student"}.pdf`);
-  toast("📄 PDF 已匯出！");
+
+  const wrap=document.createElement("div");
+  wrap.style.cssText="position:fixed;left:-9999px;top:0;width:760px;background:#ffffff;padding:32px;font-family:'Nunito','Noto Sans TC',sans-serif;color:#2B2440;line-height:1.6";
+  wrap.innerHTML = body;
+  document.body.appendChild(wrap);
+  toast("📄 產生 PDF 中，請稍候…");
+
+  html2canvas(wrap, {scale:2, backgroundColor:"#ffffff", useCORS:true}).then(canvas=>{
+    document.body.removeChild(wrap);
+    const doc = new jsPDF({unit:"pt", format:"a4"});
+    const pageW=doc.internal.pageSize.getWidth(), pageH=doc.internal.pageSize.getHeight();
+    const margin=24, imgW=pageW-margin*2, imgH=canvas.height*imgW/canvas.width;
+    const imgData=canvas.toDataURL("image/png");
+    let heightLeft=imgH, y=margin;
+    doc.addImage(imgData,"PNG",margin,y,imgW,imgH);
+    heightLeft -= (pageH-margin*2);
+    while(heightLeft > 0){
+      y = margin - (imgH - heightLeft);
+      doc.addPage();
+      doc.addImage(imgData,"PNG",margin,y,imgW,imgH);
+      heightLeft -= (pageH-margin*2);
+    }
+    doc.save(`EnglishPOP_Issue${issue.id}_${(S.student&&S.student.name)||"student"}.pdf`);
+    toast("📄 PDF 已匯出！");
+  }).catch(err=>{
+    if(wrap.parentNode) document.body.removeChild(wrap);
+    console.error(err);
+    toast("PDF 匯出失敗，請再試一次");
+  });
 }
 
 /* ============ 啟動 ============ */
