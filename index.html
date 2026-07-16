@@ -656,6 +656,7 @@ if(!S.collection) S.collection={owned:{}, equipped:{theme:null, frame:null, titl
 if(!S.collection.equipped) S.collection.equipped={theme:null, frame:null, title:null};
 if(S.pity===undefined) S.pity=0;
 function save(){ store.set("englishpop_v1", S); }
+function issueKey(issue){ return (issue.tier!=null?issue.tier:"?")+"-"+issue.id; }
 function issueProg(id){ if(!S.issues[id]) S.issues[id]={done:{}}; return S.issues[id]; }
 
 /* ============ 小工具 ============ */
@@ -803,7 +804,7 @@ function sendProgress(record){
 }
 function completeSection(issue, key, opts){
   opts=opts||{};
-  const p=issueProg(issue.id);
+  const p=issueProg(issueKey(issue));
   const first=!p.done[key];
   p.done[key]=Object.assign({at:todayStr()}, opts.data||{});
   let candy=opts.candy||0, crit=false;
@@ -899,7 +900,7 @@ function renderIssueMap(tier){
     </div>
     <div class="imap" id="imap">
       ${list.map((iss,i)=>{
-        const p=issueProg(iss.id);
+        const p=issueProg(issueKey(iss));
         const done=SECTIONS.every(s=>p.done[s.key]);
         const started=SECTIONS.some(s=>p.done[s.key]);
         const state=done?"done":(started?"now":"new");
@@ -920,14 +921,14 @@ function renderIssueMap(tier){
 
 /* ============ 闖關地圖 ============ */
 function unlockedIndex(issue){
-  const p=issueProg(issue.id);
+  const p=issueProg(issueKey(issue));
   for(let i=0;i<SECTIONS.length;i++){ if(!p.done[SECTIONS[i].key]) return i; }
   return SECTIONS.length;
 }
 function renderMap(issue){
   CURRENT_ISSUE=issue;
   $("#hud").classList.remove("hidden"); updateHUD();
-  const p=issueProg(issue.id);
+  const p=issueProg(issueKey(issue));
   const cur=unlockedIndex(issue);
   const doneCount=SECTIONS.filter(s=>p.done[s.key]).length;
   const pct=Math.round(doneCount/SECTIONS.length*100);
@@ -958,7 +959,7 @@ function renderMap(issue){
         </div>`;
       }).join("")}
     </div>
-    ${S.badges.includes(issue.id)?`<div class="center"><span class="done-stamp">🏅 Issue ${esc(issue.id)} 徽章已入手！</span></div>`:""}
+    ${S.badges.includes(issueKey(issue))?`<div class="center"><span class="done-stamp">🏅 Issue ${esc(issue.id)} 徽章已入手！</span></div>`:""}
     <button class="btn ghost block mt24" id="pdf-btn">📄 匯出 PDF 給老師討論</button>
     <footer class="mini">English POP! · 免費非營利英語學習</footer>`;
   $("#map-back").addEventListener("click",()=>renderIssueMap(issue.tier||1));
@@ -1012,7 +1013,7 @@ function renderSection(issue, key){
 /* ============ 慶祝畫面 ============ */
 function renderCelebrate(issue){
   confetti();
-  if(!S.badges.includes(issue.id)){ S.badges.push(issue.id); save(); }
+  if(!S.badges.includes(issueKey(issue))){ S.badges.push(issueKey(issue)); save(); }
   stage().innerHTML = `
     <div class="card center" style="margin-top:40px">
       <div class="badge-big">🏅</div>
@@ -1117,8 +1118,29 @@ function renderReading(issue){
     if(t.combo>=2){ c.textContent="COMBO ×"+t.combo; c.classList.add("show"); setTimeout(()=>c.classList.remove("show"),1200); }
   }
   function show(){
-    const q=qs[i]; const open=q.ans===-1;
+    const q=qs[i]; const open=q.ans===-1 || !q.opts || q.opts.length===0;
     comboMark(t);
+    if(open){
+      $("#rc-box").innerHTML=`
+        <div class="card">
+          <div class="eyebrow">Q${i+1} / ${qs.length} ${t.combo>=2?("· 🔥 combo ×"+t.combo):""}</div>
+          <div class="mt8" style="display:flex;gap:10px;align-items:flex-start">
+            <button class="speak-btn" id="rc-tts">🔊</button>
+            <p style="font-weight:800">${esc(q.q)}</p>
+          </div>
+          <textarea class="write-area mt8" id="rc-open-in" style="min-height:80px" placeholder="My answer...（這題沒有標準答案，寫寫看你的想法）"></textarea>
+          <button class="btn pink block mt8" id="rc-open-go">送出想法 →</button>
+          <div id="rc-fb"></div>
+        </div>`;
+      $("#rc-tts").onclick=()=>speak(q.q.replace(/^💭.*—/,""));
+      $("#rc-open-go").onclick=()=>{
+        $("#rc-open-go").disabled=true;
+        $("#rc-fb").innerHTML='<div class="feedback good">💡 很棒的想法！這題沒有標準答案。'+(q.explain?esc(q.explain):"")+'</div>';
+        comboAnswer(t,true,1); score++; showCombo();
+        setTimeout(nextQ,900);
+      };
+      return;
+    }
     $("#rc-box").innerHTML=`
       <div class="card">
         <div class="eyebrow">Q${i+1} / ${qs.length} ${t.combo>=2?("· 🔥 combo ×"+t.combo):""}</div>
@@ -1136,10 +1158,6 @@ function renderReading(issue){
       const b=e.target.closest(".choice"); if(!b) return;
       document.querySelectorAll("#rc-opts .choice").forEach(x=>x.style.pointerEvents="none");
       const k=+b.dataset.k;
-      if(open){ b.classList.add("correct");
-        $("#rc-fb").innerHTML='<div class="feedback good">💡 很棒的選擇！這題沒有標準答案。</div>';
-        comboAnswer(t,true,1); score++; showCombo();
-        setTimeout(nextQ,900); return; }
       if(k===q.ans){ b.classList.add("correct"); comboAnswer(t,true,1); score++;
         $("#rc-fb").innerHTML='<div class="feedback good">✅ 答對了！'+(q.explain?esc(q.explain):"")+'</div>';
         showCombo(); setTimeout(nextQ,900);
@@ -1808,7 +1826,7 @@ function renderCollectionBody(){
 function exportIssuePDF(issue){
   if(!window.jspdf || !window.html2canvas){ toast("PDF 元件載入中，請稍後再試一次"); return; }
   const { jsPDF } = window.jspdf;
-  const p=issueProg(issue.id);
+  const p=issueProg(issueKey(issue));
   const doneCount=SECTIONS.filter(s=>p.done[s.key]).length;
 
   function row(key,rec){
