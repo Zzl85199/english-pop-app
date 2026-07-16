@@ -294,7 +294,7 @@ footer.mini{color:var(--muted);font-size:12px;text-align:center;padding:24px 0;f
    ◆ CONFIG.progressWebhook 之後接 Apps Script，回傳學生進度給老師後台
    ================================================================ */
 const CONFIG = Object.assign({
-  sheetCsvUrl: "",        // TODO: Google Sheet 發布網址
+  sheetCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRlJ1J_WtUax1CWaAZKVGooYoRX9Zxz01lUZTUsOM-Ts7RSgkSTO6qbabdZPtOOCWJKQ75cIMXnIUpW/pub?gid=0&single=true&output=csv",        // TODO: Google Sheet 發布網址
   progressWebhook: ""     // TODO: Apps Script Web App 網址
 }, window.ENGLISHPOP_CONFIG || {});
 
@@ -712,6 +712,31 @@ function flyCandy(fromEl, n){
   }
   setTimeout(()=>{ S.candy+=n; save(); updateHUD(); }, 850);
 }
+/* ============ 連擊 + 糖果追蹤（Reading / Grammar / Quiz 共用） ============
+   規則：答對 +基本糖果，連擊達到門檻（×3 / ×5 / ×8）額外加碼。
+   答錯連續 ≥3 題、且平均作答時間 <2 秒（像在亂猜），跳一句溫和提醒——
+   純粹提醒，不會扣糖果、不會扣 XP，避免讓學生覺得被處罰。
+=========================================================================== */
+function newCombo(){ return {combo:0, best:0, candy:0, wrongStreak:0, times:[], warned:false, shownAt:0}; }
+function comboMark(t){ t.shownAt=Date.now(); }
+function comboAnswer(t, correct, baseCandy){
+  baseCandy = baseCandy===undefined ? 1 : baseCandy;
+  t.times.push(Date.now()-(t.shownAt||Date.now()));
+  if(correct){
+    t.candy+=baseCandy;
+    t.combo++; t.best=Math.max(t.best,t.combo); t.wrongStreak=0; t.warned=false;
+    [[3,2],[5,4],[8,6]].forEach(([th,bonus])=>{
+      if(t.combo===th){ t.candy+=bonus; toast("🔥 連擊 ×"+th+"！額外 +"+bonus+" 🍬"); }
+    });
+  }else{
+    t.combo=0; t.wrongStreak++;
+    if(!t.warned && t.wrongStreak>=3){
+      const recent=t.times.slice(-3);
+      const avg=recent.reduce((a,b)=>a+b,0)/recent.length;
+      if(avg<2000){ toast("🤔 要不要放慢一點，重新讀一次題目？"); t.warned=true; }
+    }
+  }
+}
 function confetti(){
   const bits=["🎉","✨","🍬","⭐","🎈","💛","💖"];
   for(let i=0;i<36;i++){
@@ -781,7 +806,9 @@ function completeSection(issue, key, opts){
   const p=issueProg(issue.id);
   const first=!p.done[key];
   p.done[key]=Object.assign({at:todayStr()}, opts.data||{});
-  if(first){ addXP(opts.xp||20); if(opts.candy) flyCandy(opts.candyFrom, opts.candy); }
+  let candy=opts.candy||0, crit=false;
+  if(first && candy>0 && Math.random()<0.05){ candy*=3; crit=true; }
+  if(first){ addXP(opts.xp||20); if(candy){ if(crit){ toast("💥 爆擊！糖果 ×3 🍬"); confetti(); } flyCandy(opts.candyFrom, candy); } }
   touchStreak(); save();
   sendProgress({issue:issue.id, section:key, score:opts.data&&opts.data.score!==undefined?opts.data.score:"", xp:opts.xp||20});
   const idx=SECTIONS.findIndex(s=>s.key===key);
@@ -792,7 +819,7 @@ function completeSection(issue, key, opts){
       toast((first?("⭐ +"+(opts.xp||20)+" XP！"):"✅ 已更新！")+(idx<SECTIONS.length-1?" 下一關解鎖！":""));
       renderMap(issue);
     }
-  }, opts.delay||600);
+  }, crit?1400:(opts.delay||600));
 }
 
 /* ============ 登入 ============ */
@@ -1017,7 +1044,7 @@ function renderWarmup(issue){
       if(v.length<2){ toast("寫一點點就好，不用完美！"); return; }
       answers.push(v);
       if(i<qs.length-1){ i++; show(); toast("很好！下一題 💪"); }
-      else completeSection(issue,"warmup",{xp:15, data:{answers}});
+      else completeSection(issue,"warmup",{xp:15, candy:1, data:{answers}});
     };
   }
   show();
@@ -1058,24 +1085,25 @@ function renderCover(issue){
   }
   $("#cv-next").onclick=next;
   $("#cv-all").onclick=()=>speak(paras.join(" "));
-  $("#cv-done").onclick=()=>completeSection(issue,"cover",{xp:20});
+  $("#cv-done").onclick=()=>completeSection(issue,"cover",{xp:20, candy:1});
 }
 
 /* ============ 🔍 Reading Check（連擊戰） ============ */
 function renderReading(issue){
-  const qs=issue.reading; let i=0, combo=0, best=0, score=0;
+  const qs=issue.reading; let i=0, score=0; const t=newCombo();
   sectionShell(issue,"reading",`
-    <div class="card"><p style="font-weight:700">答對會累積 <b>COMBO 連擊</b>，連擊越高分數加倍！答錯不扣分，但連擊會歸零 😆</p></div>
+    <div class="card"><p style="font-weight:700">答對會累積 <b>COMBO 連擊</b>，連擊越高糖果加碼！答錯不扣分，但連擊會歸零 😆</p></div>
     <div id="rc-box"></div>`);
   function showCombo(){
     const c=$("#combo");
-    if(combo>=2){ c.textContent="COMBO ×"+combo; c.classList.add("show"); setTimeout(()=>c.classList.remove("show"),1200); }
+    if(t.combo>=2){ c.textContent="COMBO ×"+t.combo; c.classList.add("show"); setTimeout(()=>c.classList.remove("show"),1200); }
   }
   function show(){
     const q=qs[i]; const open=q.ans===-1;
+    comboMark(t);
     $("#rc-box").innerHTML=`
       <div class="card">
-        <div class="eyebrow">Q${i+1} / ${qs.length} ${combo>=2?("· 🔥 combo ×"+combo):""}</div>
+        <div class="eyebrow">Q${i+1} / ${qs.length} ${t.combo>=2?("· 🔥 combo ×"+t.combo):""}</div>
         <div class="mt8" style="display:flex;gap:10px;align-items:flex-start">
           <button class="speak-btn" id="rc-tts">🔊</button>
           <p style="font-weight:800">${esc(q.q)}</p>
@@ -1092,13 +1120,13 @@ function renderReading(issue){
       const k=+b.dataset.k;
       if(open){ b.classList.add("correct");
         $("#rc-fb").innerHTML='<div class="feedback good">💡 很棒的選擇！這題沒有標準答案。</div>';
-        combo++; best=Math.max(best,combo); score++; showCombo();
+        comboAnswer(t,true,1); score++; showCombo();
         setTimeout(nextQ,900); return; }
-      if(k===q.ans){ b.classList.add("correct"); combo++; best=Math.max(best,combo); score++;
+      if(k===q.ans){ b.classList.add("correct"); comboAnswer(t,true,1); score++;
         $("#rc-fb").innerHTML='<div class="feedback good">✅ 答對了！'+(q.explain?esc(q.explain):"")+'</div>';
         showCombo(); setTimeout(nextQ,900);
       }else{
-        b.classList.add("wrong"); combo=0;
+        b.classList.add("wrong"); comboAnswer(t,false);
         const right=document.querySelector('#rc-opts .choice[data-k="'+q.ans+'"]');
         $("#rc-fb").innerHTML='<div class="feedback bad">💥 Combo 中斷！正確答案亮起來了。'+(q.explain?" "+esc(q.explain):"")+'</div>';
         setTimeout(()=>{ right.classList.add("correct"); },400);
@@ -1109,15 +1137,15 @@ function renderReading(issue){
   function nextQ(){
     if(i<qs.length-1){ i++; show(); }
     else{
-      const xp=10*score + best*5;
+      const xp=10*score + t.best*5;
       stage().querySelector("#rc-box").innerHTML=`
         <div class="card center">
           <div class="badge-big">${score>=4?"🌟":"💪"}</div>
           <h2 class="disp">答對 ${score} / ${qs.length} 題</h2>
-          <p style="font-weight:700">最高連擊 ×${best} ｜ 獲得 ⭐ ${xp} XP</p>
+          <p style="font-weight:700">最高連擊 ×${t.best} ｜ 獲得 ⭐ ${xp} XP ｜ 🍬 ${t.candy}</p>
           <button class="btn pink block mt16" id="rc-fin">收下獎勵！</button>
         </div>`;
-      $("#rc-fin").onclick=()=>completeSection(issue,"reading",{xp, data:{score, best}});
+      $("#rc-fin").onclick=()=>completeSection(issue,"reading",{xp, candy:t.candy, data:{score, best:t.best}});
     }
   }
   show();
@@ -1174,7 +1202,7 @@ function renderCandy(issue){
           $("#wc-count").textContent="已配對 "+matched+" / "+pairs.length;
           open=null; lock=false;
           if(matched===pairs.length){
-            setTimeout(()=>completeSection(issue,"candy",{xp:25, data:{score:matched}}),700);
+            setTimeout(()=>completeSection(issue,"candy",{xp:25, candy:1, data:{score:matched}}),700);
           }
         },350);
       }else{
@@ -1232,12 +1260,12 @@ function renderSayIt(issue){
     if(!doneSet.has(i)){ doneSet.add(i); doneCount++; toast("完成 "+doneCount+"/"+ex.length+" 句！"); }
     if(doneCount>=ex.length) $("#si-fin").classList.remove("hidden");
   }
-  $("#si-fin").onclick=()=>completeSection(issue,"sayit",{xp:25, data:{score:doneCount}});
+  $("#si-fin").onclick=()=>completeSection(issue,"sayit",{xp:25, candy:1, data:{score:doneCount}});
 }
 
 /* ============ 🧩 Grammar Bite ============ */
 function renderGrammar(issue){
-  const g=issue.grammar; let step=-1; let correct=0;
+  const g=issue.grammar; let step=-1; let correct=0; const t=newCombo();
   sectionShell(issue,"grammar",`
     <div class="card">
       <span class="tag">📚 ${esc(g.name)}</span>
@@ -1260,11 +1288,12 @@ function renderGrammar(issue){
   const practice=g.practice.concat([Object.assign({type:"choice"}, issue.mistake.fix)]);
   function show(){
     const p=practice[step];
+    comboMark(t);
     if(p.type==="order"){
       let pool=p.words.slice().sort(()=>Math.random()-.5), built=[];
       $("#gb-box").innerHTML=`
         <div class="card">
-          <div class="eyebrow">挑戰 ${step+1}/${practice.length} · ${esc(p.zh)}</div>
+          <div class="eyebrow">挑戰 ${step+1}/${practice.length} · ${esc(p.zh)} ${t.combo>=2?("· 🔥 combo ×"+t.combo):""}</div>
           <div class="chip-row" id="gb-ans"></div>
           <div class="chip-row" id="gb-pool" style="border-style:solid;border-color:transparent;background:none"></div>
           <div id="gb-fb"></div>
@@ -1274,7 +1303,7 @@ function renderGrammar(issue){
         $("#gb-pool").innerHTML=pool.map((w,k)=>`<button class="chip" data-from="pool" data-k="${k}">${esc(w)}</button>`).join("");
         if(!pool.length){
           const s=built.join(" ");
-          if(s===p.ans){ $("#gb-fb").innerHTML='<div class="feedback good">✅ 正確！'+esc(p.ans)+'</div>'; speak(p.ans); correct++; setTimeout(nextStep,1200); }
+          if(s===p.ans){ $("#gb-fb").innerHTML='<div class="feedback good">✅ 正確！'+esc(p.ans)+'</div>'; speak(p.ans); comboAnswer(t,true,2); correct++; setTimeout(nextStep,1200); }
           else{ $("#gb-fb").innerHTML='<div class="feedback bad">🤔 順序不對，點句子裡的字放回去再試！</div>'; }
         } else $("#gb-fb").innerHTML="";
       }
@@ -1288,7 +1317,7 @@ function renderGrammar(issue){
     } else {
       $("#gb-box").innerHTML=`
         <div class="card">
-          <div class="eyebrow">挑戰 ${step+1}/${practice.length}</div>
+          <div class="eyebrow">挑戰 ${step+1}/${practice.length} ${t.combo>=2?("· 🔥 combo ×"+t.combo):""}</div>
           <p class="mt8" style="font-weight:800">${esc(p.q)}</p>
           <div id="gb-opts">${p.opts.map((o,k)=>`<button class="choice" data-k="${k}">${String.fromCharCode(65+k)}. ${esc(o)}</button>`).join("")}</div>
           <div id="gb-fb"></div>
@@ -1296,9 +1325,9 @@ function renderGrammar(issue){
       $("#gb-opts").onclick=e=>{
         const b=e.target.closest(".choice"); if(!b) return;
         document.querySelectorAll("#gb-opts .choice").forEach(x=>x.style.pointerEvents="none");
-        if(+b.dataset.k===p.ans){ b.classList.add("correct"); correct++;
+        if(+b.dataset.k===p.ans){ b.classList.add("correct"); comboAnswer(t,true,2); correct++;
           $("#gb-fb").innerHTML='<div class="feedback good">✅ 答對了！</div>'; setTimeout(nextStep,900); }
-        else{ b.classList.add("wrong");
+        else{ b.classList.add("wrong"); comboAnswer(t,false);
           document.querySelector('#gb-opts .choice[data-k="'+p.ans+'"]').classList.add("correct");
           $("#gb-fb").innerHTML='<div class="feedback bad">再看一次正確答案 👀</div>'; setTimeout(nextStep,1700); }
       };
@@ -1312,8 +1341,9 @@ function renderGrammar(issue){
       $("#gb-box").innerHTML=`<div class="card center">
         <div class="badge-big">🧩</div>
         <h2 class="disp">答對 ${correct}/${practice.length}</h2>
+        <p style="font-weight:700">最高連擊 ×${t.best} ｜ 🍬 ${t.candy}</p>
         <button class="btn pink block mt16" id="gb-fin">收下 ⭐ ${xp} XP</button></div>`;
-      $("#gb-fin").onclick=()=>completeSection(issue,"grammar",{xp, data:{score:correct}});
+      $("#gb-fin").onclick=()=>completeSection(issue,"grammar",{xp, candy:t.candy, data:{score:correct}});
     }
   }
 }
@@ -1373,7 +1403,7 @@ function renderSpeakUp(issue){
   }
   $("#su-fin").onclick=()=>{
     stopAll();
-    completeSection(issue,"speakup",{xp:30+hits.size*5, data:{seconds:sec, targetsHit:hits.size}});
+    completeSection(issue,"speakup",{xp:30+hits.size*5, candy:2, data:{seconds:sec, targetsHit:hits.size}});
   };
 }
 
@@ -1434,7 +1464,7 @@ function renderRoleplay(issue){
         <button class="btn pink block mt16" id="rp-fin">完成 Role-Play！</button>
       </div>`;
     $("#rp-again").onclick=()=>renderRoleplay(issue);
-    $("#rp-fin").onclick=()=>completeSection(issue,"roleplay",{xp:20+Math.round(ratio*20), data:{score:pts, max:maxPts}});
+    $("#rp-fin").onclick=()=>completeSection(issue,"roleplay",{xp:20+Math.round(ratio*20), candy:2, data:{score:pts, max:maxPts}});
   }
   showTurn();
 }
@@ -1483,7 +1513,7 @@ function renderWriting(issue){
   ta.addEventListener("input",check); check();
   $("#mw-fin").onclick=()=>{
     confetti();
-    completeSection(issue,"writing",{xp:40, data:{text:ta.value, words:ta.value.trim().split(/\s+/).length}});
+    completeSection(issue,"writing",{xp:40, candy:2, data:{text:ta.value, words:ta.value.trim().split(/\s+/).length}});
   };
 }
 
@@ -1500,7 +1530,7 @@ function renderQuiz(issue){
     <div id="qz-box"></div>`);
   $("#qz-go").onclick=start;
   function start(){
-    let i=0, score=0, left=qz.time, iv=null;
+    let i=0, score=0, left=qz.time, iv=null; const t=newCombo();
     stage().querySelector(".card").classList.add("hidden");
     function head(){
       return `<div class="boss-bar">
@@ -1511,22 +1541,23 @@ function renderQuiz(issue){
     }
     function show(){
       const q=qs[i];
+      comboMark(t);
       $("#qz-box").innerHTML=`<div class="card">${head()}
-        <div class="eyebrow">第 ${i+1} / ${qs.length} 題</div>
+        <div class="eyebrow">第 ${i+1} / ${qs.length} 題 ${t.combo>=2?("· 🔥 combo ×"+t.combo):""}</div>
         <p class="mt8" style="font-weight:800">${esc(q.q)}</p>
         <div id="qz-opts">${q.opts.map((o,k)=>`<button class="choice" data-k="${k}">${String.fromCharCode(65+k)}. ${esc(o)}</button>`).join("")}</div>
       </div>`;
       $("#qz-opts").onclick=e=>{
         const b=e.target.closest(".choice"); if(!b) return;
         document.querySelectorAll("#qz-opts .choice").forEach(x=>x.style.pointerEvents="none");
-        if(+b.dataset.k===q.ans){ b.classList.add("correct"); score++; toast("💥 命中魔王！"); }
-        else{ b.classList.add("wrong");
+        if(+b.dataset.k===q.ans){ b.classList.add("correct"); comboAnswer(t,true,1); score++; toast("💥 命中魔王！"); }
+        else{ b.classList.add("wrong"); comboAnswer(t,false);
           document.querySelector('#qz-opts .choice[data-k="'+q.ans+'"]').classList.add("correct"); }
         setTimeout(()=>{ i++; if(i<qs.length && left>0) show(); else finish(); }, 800);
       };
     }
     iv=setInterval(()=>{ left--;
-      const t=$("#qz-t"); if(t){ t.textContent=left+"s"; if(left<=15) t.classList.add("low"); }
+      const tEl=$("#qz-t"); if(tEl){ tEl.textContent=left+"s"; if(left<=15) tEl.classList.add("low"); }
       if(left<=0){ clearInterval(iv); finish(); }
     },1000);
     function finish(){
@@ -1537,9 +1568,9 @@ function renderQuiz(issue){
         <div class="badge-big">${win?"🏅":"💫"}</div>
         <h2 class="disp">${win?"魔王被打敗了！":"魔王逃走了…"}</h2>
         <p style="font-weight:700">答對 ${score} / ${qs.length} 題${win?"，獲得 Issue 徽章！":"。複習一下 Word Candy 和 Grammar Bite，再來挑戰！"}</p>
-        ${win?'<button class="btn pink block mt16" id="qz-fin">收下徽章 🏅</button>':'<button class="btn purple block mt16" id="qz-retry">🔁 再挑戰一次</button><button class="btn small ghost mt8" id="qz-back">回地圖複習</button>'}
+        ${win?`<p style="font-weight:700">最高連擊 ×${t.best} ｜ 🍬 ${t.candy}</p><button class="btn pink block mt16" id="qz-fin">收下徽章 🏅</button>`:'<button class="btn purple block mt16" id="qz-retry">🔁 再挑戰一次</button><button class="btn small ghost mt8" id="qz-back">回地圖複習</button>'}
       </div>`;
-      if(win) $("#qz-fin").onclick=()=>completeSection(issue,"quiz",{xp:60, data:{score}});
+      if(win) $("#qz-fin").onclick=()=>completeSection(issue,"quiz",{xp:60, candy:t.candy, data:{score}});
       else{ $("#qz-retry").onclick=()=>renderQuiz(issue); $("#qz-back").onclick=()=>renderMap(issue); }
     }
     show();
@@ -1670,16 +1701,43 @@ function renderGachaBody(){
       </div>`;
   };
 }
+let SHOP_SORT="price_asc";
+function sortRewards(list, mode){
+  const rarityOrder={common:0,rare:1,epic:2,legendary:3};
+  const typeLabel={theme:"🎨 主題色",frame:"🖼️ 頭像框",title:"🏷️ 稱號",badge:"🏅 徽章",sticker:"✨ 貼紙"};
+  const arr=list.slice();
+  switch(mode){
+    case "price_desc": arr.sort((a,b)=>b.price-a.price); break;
+    case "rarity": arr.sort((a,b)=>(rarityOrder[b.rarity]-rarityOrder[a.rarity]) || a.price-b.price); break;
+    case "name": arr.sort((a,b)=>a.name.localeCompare(b.name,'zh-Hant')); break;
+    case "type": arr.sort((a,b)=>typeLabel[a.type].localeCompare(typeLabel[b.type],'zh-Hant') || a.price-b.price); break;
+    default: arr.sort((a,b)=>a.price-b.price);
+  }
+  return arr;
+}
 function renderShopBody(){
-  $("#rw-body").innerHTML = `<div class="reward-grid">${REWARDS.map(r=>{
-    const owned=!!S.collection.owned[r.id];
-    return `<div class="reward-card rarity-${r.rarity}">
-      <div class="ric">${r.emoji}</div>
-      <div class="rname">${esc(r.name)}</div>
-      <div class="rrare">${rarityLabel(r.rarity)}</div>
-      ${owned?'<span class="tag">已擁有</span>':`<button class="btn small teal" data-buy="${r.id}">${r.price} 🍬</button>`}
-    </div>`;
-  }).join("")}</div>`;
+  const sorted=sortRewards(REWARDS, SHOP_SORT);
+  $("#rw-body").innerHTML = `
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+      <select id="shop-sort" style="border:2px solid var(--ink);border-radius:10px;padding:6px 10px;font-weight:800;font-size:13px;background:var(--card)">
+        <option value="price_asc">💰 價格：低到高</option>
+        <option value="price_desc">💰 價格：高到低</option>
+        <option value="rarity">✨ 稀有度：高到低</option>
+        <option value="name">🔤 名稱</option>
+        <option value="type">🗂️ 分類</option>
+      </select>
+    </div>
+    <div class="reward-grid">${sorted.map(r=>{
+      const owned=!!S.collection.owned[r.id];
+      return `<div class="reward-card rarity-${r.rarity}">
+        <div class="ric">${r.emoji}</div>
+        <div class="rname">${esc(r.name)}</div>
+        <div class="rrare">${rarityLabel(r.rarity)}</div>
+        ${owned?'<span class="tag">已擁有</span>':`<button class="btn small teal" data-buy="${r.id}">${r.price} 🍬</button>`}
+      </div>`;
+    }).join("")}</div>`;
+  $("#shop-sort").value=SHOP_SORT;
+  $("#shop-sort").onchange=(e)=>{ SHOP_SORT=e.target.value; renderShopBody(); };
   document.querySelectorAll("[data-buy]").forEach(b=>b.onclick=()=>buyReward(b.dataset.buy));
 }
 function renderCollectionBody(){
