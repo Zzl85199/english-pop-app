@@ -15,6 +15,6 @@
  *   設定步驟請見 apps-script/Code.gs 檔案開頭的說明。
  */
 window.ENGLISHPOP_CONFIG = {
-  sheetCsvUrl: "",
+  sheetCsvUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vRlJ1J_WtUax1CWaAZKVGooYoRX9Zxz01lUZTUsOM-Ts7RSgkSTO6qbabdZPtOOCWJKQ75cIMXnIUpW/pub?gid=0&single=true&output=csv",
   progressWebhook: ""
 };
