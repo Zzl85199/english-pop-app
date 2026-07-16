@@ -1,0 +1,70 @@
+"IssueID","Title","Level","Tier","Time","Goals","Warmup","CoverStory","ReadingCheck","WordCandy","SayItNaturally","GrammarBite","SpeakUp","RolePlay","MiniWriting","QuickQuiz","RealLifeMission"
+"01","How to Make New Friends","B1","3","30-40 分鐘","用英文自然地自我介紹;詢問別人的興趣和生活;使用追問句延續對話;完成一段一分鐘的英文口說","先不要查單字，試著用英文回答（打字或用說的都可以）！
+Is it easy or difficult for you to make new friends?|可以用 It is easy / difficult for me because... 開頭
+Where do you usually meet new people?|例如 at school, at work, online...
+What do you usually say when you meet someone for the first time?|例如 Hi, my name is...","看到標題 ""How to Make New Friends""，你猜這篇文章會談什麼？
+
+Meeting new people can feel exciting, but it can also feel uncomfortable. You may not know what to say, or you may worry about making a mistake. The good news is that making friends does not require perfect English or a perfect personality. It usually starts with one small conversation.
+
+First, begin with a simple greeting. You can say, ""Hi, I'm Alex. What's your name?"" After introducing yourself, ask an easy question about the situation. Questions like these are natural because they are connected to the place or event.
+
+Next, listen carefully to the other person's answer. Good conversations are not only about speaking. If someone says, ""I like watching movies,"" do not stop at ""Me too."" Ask a follow-up question such as, ""What kind of movies do you like?""
+
+Finally, do not put too much pressure on yourself. Not every conversation will become a friendship, and that is okay. Be friendly, stay curious and give the conversation time.","Q: What is the main idea of the article?
+A: You need perfect English to make friends.
+B: Simple questions and careful listening can help you make friends.
+C: You should only talk about movies with new people.
+ANS: 1
+
+Q: Why should you ask questions about the situation?
+A: Because they feel natural and are easy to answer.
+B: Because they test the other person's English.
+C: Because they end the conversation quickly.
+ANS: 0
+
+Q: True or False? A good conversation is only about speaking.
+A: True
+B: False
+ANS: 1
+EXPLAIN: A good conversation includes both speaking and listening.
+
+Q: What should you do after someone tells you about an interest?
+A: Say ""Me too"" and stop.
+B: Change the topic.
+C: Show interest and ask a follow-up question.
+ANS: 2","uncomfortable|adjective|不自在的、不舒服的|feeling nervous or not relaxed|I felt uncomfortable when nobody spoke.
+introduce|verb|介紹|to tell someone your name or give information about a person|Let me introduce myself.
+situation|noun|情況、場合|the conditions or events happening at a particular time|Try to ask a question about the situation.
+follow-up question|noun phrase|追問、延伸問題|a question that asks for more information|She asked a follow-up question about my trip.
+meaningful|adjective|有意義的|important or valuable to you|We had a meaningful conversation about our goals.","What brings you here?|你怎麼會來這裡？|在活動、聚會或課程中詢問對方來這裡的原因|What brings you here?|My friend invited me.
+What kind of things are you into?|你平常喜歡什麼？|想自然地詢問對方的興趣時使用|What kind of things are you into?|I'm really into music and photography.
+That sounds interesting. Tell me more.|聽起來很有趣，多說一點！|表現興趣、鼓勵對方繼續說|I started learning the guitar last month.|That sounds interesting. Tell me more.
+How about you?|你呢？|回答完後把問題自然地問回去|I usually spend weekends at home. How about you?|I like going hiking.
+It was nice talking to you.|很高興和你聊天。|想禮貌結束對話時使用|It was nice talking to you.|You too!","NAME: Present Perfect 現在完成式
+PATTERN: How long + have / has + subject + past participle...?
+EXPLAIN: 這個句型用來詢問某件事從過去開始，到現在持續了多久。回答時：for + 一段時間、since + 起始時間。
+EXAMPLES: How long have you lived here?;How long have you studied English?;She has worked there for six months.
+PRACTICE: I have lived here ______ five years.||for;since;during||0
+PRACTICE: She has known her best friend ______ high school.||for;since;during||1
+PRACTICE: Choose the correct sentence.||How long do you studied English?;How long have you studied English?;How long are you study English?||1","TOPIC: Introduce yourself to a new classmate（60 秒自我介紹挑戰）
+TALK: Your name;Where you are from;What you do;Your hobbies;What you usually do on weekends
+STARTERS: Hi, I'm...;I'm from...;In my free time, I enjoy...;I'm really into...;On weekends, I usually...
+TARGETS: i'm from;i enjoy;i'm really into;on weekends;how about you
+SAMPLE: Hi, I'm Kevin. I'm from Taiwan, and I currently work in marketing. In my free time, I enjoy watching movies and playing basketball.","SITUATION: 你第一次參加英文聊天活動，遇到另一位參加者 Leo。目標：自我介紹、問對方為什麼來、問興趣、用追問句、禮貌結束對話。
+NPC: Leo
+TURN: Hi! I haven't seen you before. I'm Leo.||Hi, I'm {name}. Nice to meet you!:::自我介紹＋問候:::2;Hello.:::只打招呼:::0
+TURN: Nice to meet you too! Is this your first time here?||Yes, it is! What brings you here?:::回答＋反問:::2;Yes, first time.:::只回答:::0
+TURN: My friend invited me. How about you?||I'm taking an English class here.:::分享自己的原因:::2;I don't know.:::有點冷場:::0
+END_HIGH: 你們變成朋友了！Leo 加了你的好友。
+END_MID: 聊得不錯！下次試著多用追問句，對話會更熱絡。
+END_LOW: 有點尷尬…再玩一次，試試看選有「追問句」的選項！","TOPIC: 寫一段自我介紹，貼到新班級的群組裡（80-120 字）
+GUIDE: 第 1 段：介紹自己;第 2 段：聊聊你的興趣和嗜好;第 3 段：問同學一個問題
+VOCAB: uncomfortable;introduce;situation;follow-up;meaningful
+EXPR: what brings you here;what kind of things are you into;how about you;nice talking to
+SAMPLE: Hi everyone! My name is Lily, and I'm happy to join this class. I have studied English for about three years. What kind of things are you into?","TIME: 90
+Which word means ""important or valuable""?||uncomfortable;meaningful;simple||1
+What is a follow-up question?||A question that asks for more information;A question that ends a conversation;A question that introduces your name||0
+Choose the correct sentence.||How long do you studied English?;How long have you studied English?;How long are you study English?||1
+I have lived here ______ 2021.||for;since;during||1","GOAL: 這週找一個人，用英文進行一段小對話！對象可以是同學、老師、家人、朋友或線上語伴。
+RULES: Introduce yourself. 自我介紹;Ask one question about the situation. 問一個情境問題;Ask about one interest. 問一個興趣;Use ""How about you?"";End the conversation politely. 禮貌結束
+REPORT: Who did I talk to? 我和誰說話？;What question did I ask? 我問了什麼問題？;How did I feel? 我的感覺是？"

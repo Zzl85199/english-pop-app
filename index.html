@@ -1,0 +1,1527 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>English POP! 英文闖關樂園</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="config.js"></script>
+<style>
+:root{
+  --ink:#2B2440; --paper:#F3EFFA; --card:#FFFFFF;
+  --pink:#FF5D8F; --pink-soft:#FFE3EC;
+  --yellow:#FFC53D; --yellow-soft:#FFF3D6;
+  --teal:#17B9A0; --teal-soft:#DDF6F1;
+  --purple:#7C5CFF; --purple-soft:#EAE4FF;
+  --red:#F25555; --red-soft:#FDE2E2;
+  --muted:#6E6684;
+  --radius:20px;
+  --shadow:0 4px 0 var(--ink);
+  --font-display:'Baloo 2','Nunito','Noto Sans TC',sans-serif;
+  --font-body:'Nunito','Noto Sans TC',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:var(--font-body);color:var(--ink);background:var(--paper);
+  background-image:radial-gradient(#DCD3F0 1.2px, transparent 1.2px);
+  background-size:22px 22px; font-size:16px;line-height:1.65;
+}
+#app{max-width:620px;margin:0 auto;min-height:100%;padding:0 14px 90px}
+h1,h2,h3,.disp{font-family:var(--font-display)}
+button{font-family:inherit;color:inherit;cursor:pointer}
+input,textarea{font-family:inherit;font-size:16px;color:var(--ink)}
+.hidden{display:none!important}
+
+/* ---------- HUD ---------- */
+#hud{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:8px;
+  padding:10px 4px;background:var(--paper);border-bottom:2px dashed #CFC4E8}
+#hud .who{display:flex;align-items:center;gap:6px;font-weight:800;font-size:14px;
+  background:var(--card);border:2px solid var(--ink);border-radius:999px;padding:4px 12px 4px 6px;box-shadow:var(--shadow)}
+#hud .who .av{font-size:20px}
+.pill{display:flex;align-items:center;gap:4px;font-weight:800;font-size:13px;
+  background:var(--card);border:2px solid var(--ink);border-radius:999px;padding:4px 10px;box-shadow:var(--shadow)}
+.pill.candy{background:var(--pink-soft)} .pill.xp{background:var(--yellow-soft)} .pill.streak{background:var(--teal-soft)}
+#hud .spacer{flex:1}
+
+/* ---------- Cards & buttons ---------- */
+.card{background:var(--card);border:2px solid var(--ink);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:20px;margin:16px 0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  font-family:var(--font-display);font-weight:800;font-size:17px;
+  background:var(--yellow);border:2px solid var(--ink);border-radius:16px;
+  box-shadow:var(--shadow);padding:12px 22px;transition:transform .08s}
+.btn:active{transform:translateY(4px);box-shadow:none}
+.btn.pink{background:var(--pink);color:#fff}
+.btn.teal{background:var(--teal);color:#fff}
+.btn.purple{background:var(--purple);color:#fff}
+.btn.ghost{background:var(--card)}
+.btn.block{display:flex;width:100%}
+.btn:disabled{opacity:.4;pointer-events:none}
+.btn.small{font-size:14px;padding:8px 14px;border-radius:12px}
+.tag{display:inline-block;font-size:12px;font-weight:800;border:2px solid var(--ink);
+  border-radius:999px;padding:2px 10px;background:var(--purple-soft)}
+.speak-btn{border:2px solid var(--ink);background:var(--teal-soft);border-radius:999px;
+  width:36px;height:36px;font-size:16px;box-shadow:0 3px 0 var(--ink);flex:none;transition:transform .08s}
+.speak-btn:active{transform:translateY(3px);box-shadow:none}
+.eyebrow{font-size:13px;font-weight:800;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+.center{text-align:center}
+.mt8{margin-top:8px}.mt16{margin-top:16px}.mt24{margin-top:24px}
+
+/* ---------- Section header ---------- */
+.sec-head{display:flex;align-items:center;gap:12px;margin:18px 0 4px}
+.sec-head .emoji{font-size:34px;background:var(--card);border:2px solid var(--ink);
+  border-radius:16px;width:56px;height:56px;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow)}
+.sec-head h2{font-size:24px;line-height:1.2}
+.sec-head .zh{font-size:13px;color:var(--muted);font-weight:700}
+.back-row{display:flex;align-items:center;justify-content:space-between;margin-top:14px}
+
+/* ---------- Login ---------- */
+.logo{font-family:var(--font-display);font-weight:800;font-size:40px;text-align:center;margin-top:34px;line-height:1.1}
+.logo .pop{color:var(--pink);text-shadow:3px 3px 0 var(--yellow)}
+.logo-sub{text-align:center;font-weight:800;color:var(--muted);margin-top:6px}
+.avatar-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:12px}
+.avatar-grid button{font-size:28px;background:var(--card);border:2px solid var(--ink);
+  border-radius:16px;padding:10px 0;box-shadow:0 3px 0 var(--ink)}
+.avatar-grid button.sel{background:var(--yellow);transform:translateY(3px);box-shadow:none}
+.name-input{width:100%;border:2px solid var(--ink);border-radius:14px;padding:12px 14px;
+  font-size:17px;font-weight:700;box-shadow:inset 0 2px 0 #eee}
+
+/* ---------- Map ---------- */
+.issue-banner{background:var(--purple);color:#fff;border:2px solid var(--ink);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:20px;margin:16px 0;position:relative;overflow:hidden}
+.issue-banner .lvl{position:absolute;top:14px;right:14px;background:var(--yellow);color:var(--ink);
+  border:2px solid var(--ink);border-radius:999px;font-weight:800;font-size:13px;padding:2px 12px}
+.issue-banner h1{font-size:26px;line-height:1.2;margin-top:4px}
+.issue-banner .meta{font-size:13px;opacity:.9;font-weight:700;margin-top:6px}
+.progress-track{height:14px;background:#5B3FD6;border:2px solid var(--ink);border-radius:999px;margin-top:14px;overflow:hidden}
+.progress-fill{height:100%;background:var(--yellow);border-radius:999px;transition:width .5s}
+.map{position:relative;padding:10px 0 30px}
+.map:before{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:4px dashed #CFC4E8;transform:translateX(-2px)}
+.stop{position:relative;display:flex;align-items:center;gap:14px;margin:22px 0;width:58%}
+.stop.right{margin-left:auto;flex-direction:row-reverse;text-align:right}
+.stop .node{position:relative;z-index:1;flex:none;width:64px;height:64px;border-radius:50%;
+  background:var(--card);border:3px solid var(--ink);box-shadow:var(--shadow);
+  display:flex;align-items:center;justify-content:center;font-size:28px;transition:transform .08s}
+.stop button.node:active{transform:translateY(3px);box-shadow:none}
+.stop.done .node{background:var(--teal);}
+.stop.now .node{background:var(--yellow);animation:bounce 1.6s infinite}
+.stop.locked .node{background:#E4DEF2;filter:grayscale(1);opacity:.65}
+.stop .info .t{font-family:var(--font-display);font-weight:800;font-size:15px;line-height:1.2}
+.stop .info .zh{font-size:12px;color:var(--muted);font-weight:700}
+.stop .check{position:absolute;top:-6px;right:-6px;background:var(--card);border:2px solid var(--ink);
+  border-radius:50%;width:24px;height:24px;font-size:13px;display:flex;align-items:center;justify-content:center}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@media (prefers-reduced-motion:reduce){.stop.now .node{animation:none}}
+
+/* ---------- Level select ---------- */
+.level-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:14px}
+.level-card{background:var(--card);border:2px solid var(--ink);border-radius:18px;box-shadow:var(--shadow);
+  padding:16px 10px;text-align:center;transition:transform .08s}
+.level-card:active{transform:translateY(4px);box-shadow:none}
+.level-card .ic{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:26px;margin:0 auto 8px;border:2px solid var(--ink)}
+.level-card .name{font-family:var(--font-display);font-weight:800;font-size:16px}
+.level-card .code{font-size:12px;color:var(--muted);font-weight:700;margin-top:2px}
+.level-card .stat{font-size:12px;font-weight:800;margin-top:8px}
+.level-card.reco{border-color:var(--pink);position:relative}
+.level-card.reco .reco-tag{position:absolute;top:-10px;left:50%;transform:translateX(-50%);
+  background:var(--pink);color:#fff;font-size:11px;font-weight:800;padding:2px 10px;border-radius:999px;border:2px solid var(--ink)}
+
+/* ---------- Multi-issue path map ---------- */
+.imap{position:relative;padding:10px 0 30px}
+.imap:before{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:4px dashed #CFC4E8;transform:translateX(-2px)}
+.istop{position:relative;display:flex;align-items:center;gap:14px;margin:22px 0;width:60%}
+.istop.right{margin-left:auto;flex-direction:row-reverse;text-align:right}
+.istop .node{position:relative;z-index:1;flex:none;width:60px;height:60px;border-radius:50%;
+  background:var(--card);border:3px solid var(--ink);box-shadow:var(--shadow);
+  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;transition:transform .08s}
+.istop button.node:active{transform:translateY(3px);box-shadow:none}
+.istop.done .node{background:var(--teal);color:#fff}
+.istop.now .node{background:var(--purple);color:#fff;animation:bounce 1.6s infinite}
+.istop.new .node{background:#E4DEF2}
+.istop .info .t{font-family:var(--font-display);font-weight:800;font-size:15px;line-height:1.2}
+.istop .info .zh{font-size:12px;color:var(--muted);font-weight:700}
+.back-link{background:none;border:none;color:var(--muted);font-weight:800;font-size:13px;padding:6px 0}
+
+/* ---------- Quiz / choices ---------- */
+.choice{display:block;width:100%;text-align:left;background:var(--card);border:2px solid var(--ink);
+  border-radius:14px;box-shadow:0 3px 0 var(--ink);padding:12px 14px;margin:10px 0;font-size:15px;font-weight:700;transition:transform .08s}
+.choice:active{transform:translateY(3px);box-shadow:none}
+.choice.correct{background:var(--teal-soft);border-color:var(--teal)}
+.choice.wrong{background:var(--red-soft);border-color:var(--red)}
+.combo{position:fixed;top:70px;right:16px;z-index:60;background:var(--pink);color:#fff;
+  font-family:var(--font-display);font-weight:800;border:2px solid var(--ink);border-radius:999px;
+  padding:6px 16px;box-shadow:var(--shadow);transform:scale(0);transition:transform .2s}
+.combo.show{transform:scale(1)}
+.feedback{font-weight:800;margin-top:6px;font-size:15px}
+.feedback.good{color:var(--teal)} .feedback.bad{color:var(--red)}
+
+/* ---------- Word Candy memory game ---------- */
+.mem-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
+.mem-card{position:relative;min-height:86px;border:2px solid var(--ink);border-radius:14px;
+  box-shadow:0 3px 0 var(--ink);background:var(--purple);color:#fff;
+  font-weight:800;font-size:14px;padding:10px;display:flex;align-items:center;justify-content:center;
+  text-align:center;transition:transform .15s}
+.mem-card .face{display:none}
+.mem-card.flipped,.mem-card.matched{background:var(--card);color:var(--ink)}
+.mem-card.flipped .face,.mem-card.matched .face{display:block}
+.mem-card.flipped .qm,.mem-card.matched .qm{display:none}
+.mem-card.matched{background:var(--teal-soft);border-color:var(--teal);pointer-events:none}
+.mem-card .qm{font-size:26px}
+.flashcard{border:2px solid var(--ink);border-radius:var(--radius);box-shadow:var(--shadow);
+  background:var(--card);padding:18px;margin:12px 0}
+.flashcard .w{font-family:var(--font-display);font-weight:800;font-size:22px}
+.flashcard .pos{font-size:12px;font-weight:800;color:var(--purple)}
+
+/* ---------- Chat (role-play) ---------- */
+.chat{display:flex;flex-direction:column;gap:10px;padding:6px 0}
+.bubble{max-width:82%;border:2px solid var(--ink);border-radius:16px;padding:10px 14px;
+  font-weight:700;font-size:15px;box-shadow:0 3px 0 var(--ink);animation:pop .18s}
+.bubble.npc{background:var(--card);align-self:flex-start;border-bottom-left-radius:4px}
+.bubble.me{background:var(--pink-soft);align-self:flex-end;border-bottom-right-radius:4px}
+.bubble .zh{display:block;font-size:12px;color:var(--muted);font-weight:600;margin-top:2px}
+@keyframes pop{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+.meter{display:flex;align-items:center;gap:8px;font-weight:800;font-size:13px}
+.meter .track{flex:1;height:12px;border:2px solid var(--ink);border-radius:999px;background:var(--card);overflow:hidden}
+.meter .fill{height:100%;background:var(--pink);transition:width .4s}
+
+/* ---------- Grammar builder ---------- */
+.chip-row{display:flex;flex-wrap:wrap;gap:8px;min-height:52px;border:2px dashed #CFC4E8;
+  border-radius:14px;padding:8px;margin-top:8px;background:#FBF9FF}
+.chip{border:2px solid var(--ink);background:var(--yellow-soft);border-radius:999px;
+  font-weight:800;font-size:15px;padding:6px 14px;box-shadow:0 3px 0 var(--ink);transition:transform .08s}
+.chip:active{transform:translateY(3px);box-shadow:none}
+
+/* ---------- Writing ---------- */
+.write-area{width:100%;min-height:180px;border:2px solid var(--ink);border-radius:14px;
+  padding:12px;font-size:15px;line-height:1.7;resize:vertical}
+.checklist{list-style:none;margin-top:12px}
+.checklist li{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;padding:4px 0;color:var(--muted)}
+.checklist li.ok{color:var(--teal)}
+.checklist li .box{flex:none;width:22px;height:22px;border:2px solid var(--ink);border-radius:7px;
+  background:var(--card);display:flex;align-items:center;justify-content:center;font-size:13px}
+.checklist li.ok .box{background:var(--teal);color:#fff}
+
+/* ---------- Boss quiz ---------- */
+.boss-bar{display:flex;align-items:center;gap:10px;margin:10px 0}
+.boss-bar .face{font-size:34px}
+.hp{flex:1;height:16px;border:2px solid var(--ink);border-radius:999px;background:var(--card);overflow:hidden}
+.hp .fill{height:100%;background:var(--red);transition:width .4s}
+.timer{font-family:var(--font-display);font-weight:800;font-size:18px;background:var(--card);
+  border:2px solid var(--ink);border-radius:999px;padding:2px 14px;box-shadow:0 3px 0 var(--ink)}
+.timer.low{background:var(--red-soft);color:var(--red)}
+
+/* ---------- Mic ---------- */
+.mic-btn{width:84px;height:84px;border-radius:50%;border:3px solid var(--ink);background:var(--pink);
+  color:#fff;font-size:34px;box-shadow:var(--shadow);transition:transform .08s;margin:10px auto;display:flex;align-items:center;justify-content:center}
+.mic-btn:active{transform:translateY(4px);box-shadow:none}
+.mic-btn.rec{background:var(--red);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+@media (prefers-reduced-motion:reduce){.mic-btn.rec{animation:none}}
+.transcript{border:2px dashed #CFC4E8;border-radius:14px;background:#FBF9FF;padding:12px;min-height:60px;font-weight:700;font-size:15px;margin-top:10px}
+.stars{font-size:26px;letter-spacing:4px}
+.hl{background:var(--yellow);border-radius:6px;padding:0 4px;border:1.5px solid var(--ink)}
+
+/* ---------- Toast / candy fly / confetti ---------- */
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120px);z-index:100;
+  background:var(--ink);color:#fff;font-weight:800;border-radius:999px;padding:10px 22px;
+  transition:transform .3s;font-size:15px;max-width:88vw;text-align:center}
+#toast.show{transform:translateX(-50%) translateY(0)}
+.fly{position:fixed;z-index:99;font-size:24px;pointer-events:none;transition:all .8s cubic-bezier(.4,-0.2,.6,1.2)}
+.confetti-bit{position:fixed;top:-20px;z-index:98;font-size:20px;pointer-events:none;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+
+/* ---------- Article ---------- */
+.para{border:2px solid var(--ink);border-radius:16px;background:var(--card);box-shadow:0 3px 0 var(--ink);
+  padding:14px 16px;margin:12px 0;font-size:15.5px;animation:pop .25s}
+.para .row{display:flex;gap:10px;align-items:flex-start}
+.goal-list{list-style:none}
+.goal-list li{font-weight:700;padding:3px 0}
+.expr-card{border:2px solid var(--ink);border-radius:16px;background:var(--card);box-shadow:0 3px 0 var(--ink);padding:14px;margin:12px 0}
+.expr-card .en{font-family:var(--font-display);font-weight:800;font-size:18px}
+.expr-card .zh{color:var(--muted);font-weight:700;font-size:14px}
+.expr-card .ex{background:#FBF9FF;border:2px dashed #CFC4E8;border-radius:12px;padding:8px 12px;margin-top:8px;font-size:14px;font-weight:600}
+.done-stamp{display:inline-block;background:var(--teal);color:#fff;border:2px solid var(--ink);
+  border-radius:12px;font-family:var(--font-display);font-weight:800;padding:4px 14px;transform:rotate(-3deg);box-shadow:var(--shadow)}
+.badge-big{font-size:80px;text-align:center;margin:10px 0}
+footer.mini{color:var(--muted);font-size:12px;text-align:center;padding:24px 0;font-weight:700}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud" class="hidden">
+    <div class="who"><span class="av" id="hud-av">🦊</span><span id="hud-name">同學</span></div>
+    <div class="spacer"></div>
+    <div class="pill xp">⭐ <span id="hud-xp">0</span></div>
+    <div class="pill candy">🍬 <span id="hud-candy">0</span></div>
+    <div class="pill streak">🔥 <span id="hud-streak">0</span></div>
+  </div>
+  <div id="stage"></div>
+  <div id="toast"></div>
+  <div id="combo" class="combo">COMBO ×2</div>
+</div>
+<script>
+/* ================================================================
+   English POP! 單檔互動英語雜誌
+   ---------------------------------------------------------------
+   ◆ CONFIG.sheetCsvUrl  之後接 Google Sheet 內容庫（目前用內建資料）
+   ◆ CONFIG.progressWebhook 之後接 Apps Script，回傳學生進度給老師後台
+   ================================================================ */
+const CONFIG = Object.assign({
+  sheetCsvUrl: "",        // TODO: Google Sheet 發布網址
+  progressWebhook: ""     // TODO: Apps Script Web App 網址
+}, window.ENGLISHPOP_CONFIG || {});
+
+/* ============ Issue 資料（未來由 Google Sheet 載入，一列一期） ============ */
+const ISSUES = [{
+  id:"01", title:"How to Make New Friends", level:"B1", tier:3, time:"30–40 分鐘",
+  goals:["用英文自然地自我介紹","詢問別人的興趣和生活","使用追問句延續對話","完成一段一分鐘的英文口說"],
+  warmup:{ intro:"先不要查單字，試著用英文回答（打字或用說的都可以）！",
+    questions:[
+      {q:"Is it easy or difficult for you to make new friends?", hint:"可以用 It is easy / difficult for me because... 開頭"},
+      {q:"Where do you usually meet new people?", hint:"例如 at school, at work, online..."},
+      {q:"What do you usually say when you meet someone for the first time?", hint:"例如 Hi, my name is..."}
+    ]},
+  cover:{ before:"看到標題 “How to Make New Friends”，你猜這篇文章會談什麼？",
+    paragraphs:[
+      "Meeting new people can feel exciting, but it can also feel uncomfortable. You may not know what to say, or you may worry about making a mistake. The good news is that making friends does not require perfect English or a perfect personality. It usually starts with one small conversation.",
+      "First, begin with a simple greeting. You can say, \u201cHi, I\u2019m Alex. What\u2019s your name?\u201d After introducing yourself, ask an easy question about the situation. At school, you might ask, \u201cWhat class are you taking?\u201d At a party, you could ask, \u201cHow do you know the host?\u201d Questions like these are natural because they are connected to the place or event.",
+      "Next, listen carefully to the other person\u2019s answer. Good conversations are not only about speaking. They are also about showing interest. If someone says, \u201cI like watching movies,\u201d do not stop at \u201cMe too.\u201d Ask a follow-up question such as, \u201cWhat kind of movies do you like?\u201d",
+      "It is also helpful to share something about yourself. A conversation should not feel like an interview. For example, you can say, \u201cI enjoy comedy movies too. I watched one last weekend.\u201d This gives the other person more information to respond to.",
+      "Finally, do not put too much pressure on yourself. Not every conversation will become a friendship, and that is okay. Be friendly, stay curious and give the conversation time. A short chat today may be the beginning of a meaningful friendship tomorrow."
+    ]},
+  reading:[
+    {q:"What is the main idea of the article?", opts:["You need perfect English to make friends.","Simple questions and careful listening can help you make friends.","You should only talk about movies with new people."], ans:1},
+    {q:"Why should you ask questions about the situation?", opts:["Because they feel natural and are easy to answer.","Because they test the other person\u2019s English.","Because they end the conversation quickly."], ans:0},
+    {q:"True or False? A good conversation is only about speaking.", opts:["True","False"], ans:1, explain:"A good conversation includes both speaking and listening."},
+    {q:"What should you do after someone tells you about an interest?", opts:["Say \u201cMe too\u201d and stop.","Change the topic.","Show interest and ask a follow-up question."], ans:2},
+    {q:"💭 Think about it — 哪一個技巧對你最有用？（沒有標準答案）", opts:["Ask questions about the situation","Ask follow-up questions","Share something about yourself","Don\u2019t put pressure on yourself"], ans:-1}
+  ],
+  words:[
+    {w:"uncomfortable", pos:"adjective", zh:"不自在的、不舒服的", def:"feeling nervous or not relaxed", ex:"I felt uncomfortable when nobody spoke."},
+    {w:"introduce", pos:"verb", zh:"介紹", def:"to tell someone your name or give information about a person", ex:"Let me introduce myself. My name is Mia."},
+    {w:"situation", pos:"noun", zh:"情況、場合", def:"the conditions or events happening at a particular time", ex:"Try to ask a question about the situation."},
+    {w:"follow-up question", pos:"noun phrase", zh:"追問、延伸問題", def:"a question that asks for more information", ex:"She asked a follow-up question about my trip."},
+    {w:"meaningful", pos:"adjective", zh:"有意義的", def:"important or valuable to you", ex:"We had a meaningful conversation about our goals."}
+  ],
+  match:[
+    {w:"uncomfortable", m:"feeling nervous or not relaxed"},
+    {w:"introduce", m:"to tell someone your name"},
+    {w:"situation", m:"what is happening at a particular time"},
+    {w:"meaningful", m:"important or valuable"}
+  ],
+  expressions:[
+    {en:"What brings you here?", zh:"你怎麼會來這裡？", when:"在活動、聚會或課程中，詢問對方來這裡的原因。", exA:"What brings you here?", exB:"My friend invited me."},
+    {en:"What kind of things are you into?", zh:"你平常喜歡什麼？", when:"想自然地詢問對方的興趣時使用。", exA:"What kind of things are you into?", exB:"I\u2019m really into music and photography."},
+    {en:"That sounds interesting. Tell me more.", zh:"聽起來很有趣，多說一點！", when:"表現興趣、鼓勵對方繼續說。", exA:"I started learning the guitar last month.", exB:"That sounds interesting. Tell me more."},
+    {en:"How about you?", zh:"你呢？", when:"回答完後，把問題自然地問回去。", exA:"I usually spend weekends at home. How about you?", exB:"I like going hiking."},
+    {en:"It was nice talking to you.", zh:"很高興和你聊天。", when:"想禮貌結束對話時使用。", exA:"It was nice talking to you. See you next time!", exB:"You too!"}
+  ],
+  grammar:{
+    name:"Present Perfect 現在完成式",
+    pattern:"How long + have / has + subject + past participle…?",
+    explain:"這個句型用來詢問某件事從過去開始，到現在持續了多久。回答時：for + 一段時間（for three years）、since + 起始時間（since 2022）。",
+    examples:["How long have you lived here?","How long have you studied English?","She has worked there for six months.","I have studied English since 2022."],
+    practice:[
+      {type:"order", zh:"把單字排成正確的問句", words:["How","long","have","you","studied","English?"], ans:"How long have you studied English?"},
+      {type:"choice", q:"I have lived here ______ five years.", opts:["for","since","during"], ans:0},
+      {type:"choice", q:"She has known her best friend ______ high school.", opts:["for","since","during"], ans:1},
+      {type:"choice", q:"Choose the correct sentence.", opts:["How long do you studied English?","How long have you studied English?","How long are you study English?"], ans:1}
+    ]},
+  speakup:{
+    topic:"Introduce yourself to a new classmate（60 秒自我介紹挑戰）",
+    talkAbout:["Your name","Where you are from","What you do","Your hobbies","What you usually do on weekends","What kind of people you would like to meet"],
+    starters:["Hi, I\u2019m…","I\u2019m from…","In my free time, I enjoy…","I\u2019m really into…","On weekends, I usually…","I\u2019d like to meet people who…"],
+    targets:["i'm from","i enjoy","i'm really into","on weekends","i usually","i'd like to meet","how about you"],
+    sample:"Hi, I\u2019m Kevin. I\u2019m from Taiwan, and I currently work in marketing. In my free time, I enjoy watching movies, playing basketball and trying new restaurants. On weekends, I usually spend time with my friends or stay home and read. I\u2019d like to meet people who are friendly, open-minded and interested in different cultures."
+  },
+  roleplay:{
+    situation:"你第一次參加英文聊天活動，遇到另一位參加者 Leo。目標：自我介紹、問對方為什麼來、問興趣、用追問句、禮貌結束對話。每選一句，請大聲唸出來！",
+    npcName:"Leo", npcAv:"🧑‍🎤",
+    turns:[
+      {npc:"Hi! I haven\u2019t seen you before. I\u2019m Leo.",
+       opts:[{t:"Hi, I\u2019m {name}. Nice to meet you!", zh:"自我介紹＋問候", pt:2},
+             {t:"Hello.", zh:"只打招呼", pt:0}]},
+      {npc:"Nice to meet you too! Is this your first time here?",
+       opts:[{t:"Yes, it is! What brings you here?", zh:"回答＋反問（實用句型！）", pt:2},
+             {t:"Yes, first time.", zh:"只回答", pt:0}]},
+      {npc:"My friend invited me. I come every month. How about you?",
+       opts:[{t:"I\u2019m taking an English class here.", zh:"分享自己的原因", pt:2},
+             {t:"I don\u2019t know. Someone told me to come.", zh:"有點冷場", pt:0}]},
+      {npc:"Cool! By the way, I\u2019m really into music and movies.",
+       opts:[{t:"That sounds interesting! What kind of movies do you like?", zh:"追問句（follow-up）！", pt:2},
+             {t:"Me too.", zh:"對話快結束了…", pt:0},
+             {t:"OK.", zh:"對話結束了…", pt:0}]},
+      {npc:"Mostly comedies and action movies. What kind of things are you into?",
+       opts:[{t:"I\u2019m really into comedy movies too. I watched one last weekend!", zh:"分享自己＋給對方話題", pt:2},
+             {t:"Nothing much.", zh:"沒有給對方話題", pt:0}]},
+      {npc:"No way, me too! Oh, the event is starting. Let\u2019s talk later!",
+       opts:[{t:"Sure! It was nice talking to you. See you around!", zh:"禮貌結束（實用句型！）", pt:2},
+             {t:"Bye.", zh:"有點突然", pt:0}]}
+    ],
+    endings:{high:"🎉 你們變成朋友了！Leo 加了你的好友，還約你下次一起看電影！", mid:"🙂 聊得不錯！下次試著多用追問句和 How about you?，對話會更熱絡。", low:"😅 有點尷尬… 再玩一次，試試看選有「追問句」的選項！"}
+  },
+  writing:{
+    topic:"寫一段自我介紹，貼到新班級的群組裡（80–120 字）",
+    guide:["第 1 段：介紹自己（名字、身分）","第 2 段：聊聊你的興趣和嗜好","第 3 段：問同學一個問題"],
+    vocab:["uncomfortable","introduce","situation","follow-up","meaningful"],
+    exprs:["what brings you here","what kind of things are you into","tell me more","how about you","nice talking to","nice to meet"],
+    sample:"Hi everyone! My name is Lily, and I\u2019m happy to join this class. I work in graphic design, and I have studied English for about three years.\n\nIn my free time, I enjoy drawing, watching movies and visiting caf\u00e9s. I\u2019m especially interested in photography. I hope I can have meaningful conversations and make new friends in this class.\n\nWhat kind of things are you into? I\u2019d love to hear about your hobbies. It\u2019s nice to meet everyone!"
+  },
+  quiz:{ time:90, questions:[
+    {q:"Which word means \u201cimportant or valuable\u201d?", opts:["uncomfortable","meaningful","simple"], ans:1},
+    {q:"What is a follow-up question?", opts:["A question that asks for more information","A question that ends a conversation","A question that introduces your name"], ans:0},
+    {q:"Choose the correct sentence.", opts:["How long do you studied English?","How long have you studied English?","How long are you study English?"], ans:1},
+    {q:"I have lived here ______ 2021.", opts:["for","since","during"], ans:1},
+    {q:"Which sentence sounds more natural?", opts:["What kind of things are you into?","What things you very like?"], ans:0},
+    {q:"Why should a conversation not feel like an interview?", opts:["Because both people should share information and ask questions.","Because interviews are too long.","Because you should only listen and never speak."], ans:0}
+  ]},
+  mistake:{ dont:"I very like watching movies.", say:["I really like watching movies.","I like watching movies very much."],
+    why:"very 通常不能直接放在動詞 like 前面，要加強動詞請用 really。",
+    fix:{q:"I very like learning about different cultures.", opts:["I really like learning about different cultures.","I very much like learning very.","I like very learning cultures."], ans:0}},
+  mission:{
+    goal:"這週找一個人，用英文進行一段小對話！對象可以是同學、老師、家人、朋友或線上語伴。",
+    rules:["Introduce yourself. 自我介紹","Ask one question about the situation. 問一個情境問題","Ask about one interest. 問一個興趣","Ask one follow-up question. 用一個追問句","Use \u201cHow about you?\u201d","End the conversation politely. 禮貌結束"],
+    report:[
+      {q:"Who did I talk to? 我和誰說話？"},
+      {q:"What question did I ask? 我問了什麼問題？"},
+      {q:"What follow-up question did I ask? 我的追問句是？"},
+      {q:"How did I feel? 我的感覺是？"}
+    ]}
+}];
+
+/* ============ 4 個等級世界 ============ */
+const LEVELS = [
+  {tier:1, code:"A2",  name:"新手村",   icon:"🌱", cls:"teal"},
+  {tier:2, code:"B1 初", name:"森林小徑", icon:"🌿", cls:"purple"},
+  {tier:3, code:"B1",  name:"山谷城鎮", icon:"🏰", cls:"yellow", reco:true},
+  {tier:4, code:"B2+", name:"高峰探索", icon:"⛰️", cls:"pink"}
+];
+
+/* ============ 從 Google Sheet 載入 Issue（CONFIG.sheetCsvUrl） ============
+   老師只要在 Google Sheet 貼上「一列 = 一期」的內容，發布成 CSV 後，
+   這裡會自動解析成跟上面 ISSUES 一樣的結構。詳細欄位格式請見 docs/sheet-column-guide.md
+   （沒有設定 sheetCsvUrl 時，網站會直接使用內建的 Issue 01 當範例）。
+=========================================================================== */
+function splitLines(s){ return String(s||"").split(/\r?\n/).map(x=>x.trim()).filter(Boolean); }
+function splitSemi(s){ return String(s||"").split(";").map(x=>x.trim()).filter(Boolean); }
+function kv(line){ const m=line.match(/^([A-Z]+):\s*(.*)$/); return m?{k:m[1],v:m[2]}:{k:"",v:line}; }
+
+function parseWarmup(cell){
+  const lines=splitLines(cell); const intro=lines[0]||""; const questions=[];
+  lines.slice(1).forEach(l=>{ const [q,hint]=l.split("|"); if(q) questions.push({q:q.trim(), hint:(hint||"").trim()}); });
+  return {intro, questions};
+}
+function parseCover(cell){
+  const blocks=String(cell||"").split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean);
+  return {before:blocks[0]||"", paragraphs:blocks.slice(1)};
+}
+function parseReading(cell){
+  return String(cell||"").split(/\n\s*\n/).map(b=>b.trim()).filter(Boolean).map(block=>{
+    const lines=splitLines(block); let q="",opts=[],ans=-1,explain="";
+    lines.forEach(l=>{ const {k,v}=kv(l);
+      if(k==="Q") q=v; else if(["A","B","C","D"].includes(k)) opts.push(v);
+      else if(k==="ANS") ans=/^\d+$/.test(v)?+v:-1; else if(k==="EXPLAIN") explain=v; });
+    return {q,opts,ans,explain};
+  });
+}
+function parseWords(cell){
+  return splitLines(cell).map(l=>{ const [w,pos,zh,def,ex]=l.split("|").map(x=>(x||"").trim());
+    return {w,pos,zh,def,ex}; }).filter(x=>x.w);
+}
+function parseExpressions(cell){
+  return splitLines(cell).map(l=>{ const [en,zh,when,exA,exB]=l.split("|").map(x=>(x||"").trim());
+    return {en,zh,when,exA,exB}; }).filter(x=>x.en);
+}
+function parseGrammar(cell){
+  const lines=splitLines(cell); const g={name:"",pattern:"",explain:"",examples:[],practice:[]};
+  lines.forEach(l=>{ const {k,v}=kv(l);
+    if(k==="NAME") g.name=v; else if(k==="PATTERN") g.pattern=v; else if(k==="EXPLAIN") g.explain=v;
+    else if(k==="EXAMPLES") g.examples=splitSemi(v);
+    else if(k==="PRACTICE"){ const [q,optsRaw,ansRaw]=v.split("||").map(x=>(x||"").trim());
+      const opts=splitSemi(optsRaw||""); g.practice.push({type:"choice", q, opts, ans:+ansRaw||0}); } });
+  return g;
+}
+function parseSpeakup(cell){
+  const s={topic:"",talkAbout:[],starters:[],targets:[],sample:""};
+  splitLines(cell).forEach(l=>{ const {k,v}=kv(l);
+    if(k==="TOPIC") s.topic=v; else if(k==="TALK") s.talkAbout=splitSemi(v);
+    else if(k==="STARTERS") s.starters=splitSemi(v); else if(k==="TARGETS") s.targets=splitSemi(v.toLowerCase());
+    else if(k==="SAMPLE") s.sample=v; });
+  return s;
+}
+function parseRoleplay(cell){
+  const r={situation:"",npcName:"NPC",npcAv:"🧑",turns:[],endings:{high:"",mid:"",low:""}};
+  splitLines(cell).forEach(l=>{ const {k,v}=kv(l);
+    if(k==="SITUATION") r.situation=v; else if(k==="NPC") r.npcName=v;
+    else if(k==="TURN"){ const [npc,optsRaw]=v.split("||"); const opts=splitSemi(optsRaw||"").map(o=>{
+        const [t,zh,pt]=o.split(":::").map(x=>(x||"").trim()); return {t,zh,pt:+pt||0}; });
+      r.turns.push({npc:(npc||"").trim(), opts}); }
+    else if(k==="END_HIGH") r.endings.high=v; else if(k==="END_MID") r.endings.mid=v; else if(k==="END_LOW") r.endings.low=v; });
+  return r;
+}
+function parseWriting(cell){
+  const w={topic:"",guide:[],vocab:[],exprs:[],sample:""};
+  splitLines(cell).forEach(l=>{ const {k,v}=kv(l);
+    if(k==="TOPIC") w.topic=v; else if(k==="GUIDE") w.guide=splitSemi(v);
+    else if(k==="VOCAB") w.vocab=splitSemi(v.toLowerCase()); else if(k==="EXPR") w.exprs=splitSemi(v.toLowerCase());
+    else if(k==="SAMPLE") w.sample=v; });
+  return w;
+}
+function parseQuiz(cell){
+  const lines=splitLines(cell); let time=90; const questions=[];
+  lines.forEach(l=>{ const {k,v}=kv(l); if(k==="TIME"){ time=+v||90; return; }
+    const [q,optsRaw,ansRaw]=l.split("||").map(x=>(x||"").trim());
+    if(q) questions.push({q, opts:splitSemi(optsRaw||""), ans:+ansRaw||0}); });
+  return {time, questions};
+}
+function parseMission(cell){
+  const m={goal:"",rules:[],report:[]};
+  splitLines(cell).forEach(l=>{ const {k,v}=kv(l);
+    if(k==="GOAL") m.goal=v; else if(k==="RULES") m.rules=splitSemi(v);
+    else if(k==="REPORT") m.report=splitSemi(v).map(q=>({q})); });
+  return m;
+}
+function rowToIssue(row){
+  return {
+    id:String(row["IssueID"]||"").trim(),
+    title:String(row["Title"]||"").trim(),
+    level:String(row["Level"]||"").trim(),
+    tier:+row["Tier"]||1,
+    time:String(row["Time"]||"").trim(),
+    goals:splitSemi(row["Goals"]),
+    warmup:parseWarmup(row["Warmup"]),
+    cover:parseCover(row["CoverStory"]),
+    reading:parseReading(row["ReadingCheck"]),
+    words:parseWords(row["WordCandy"]),
+    match:parseWords(row["WordCandy"]).slice(0,4).map(x=>({w:x.w, m:x.def})),
+    expressions:parseExpressions(row["SayItNaturally"]),
+    grammar:parseGrammar(row["GrammarBite"]),
+    speakup:parseSpeakup(row["SpeakUp"]),
+    roleplay:parseRoleplay(row["RolePlay"]),
+    writing:parseWriting(row["MiniWriting"]),
+    quiz:parseQuiz(row["QuickQuiz"]),
+    mission:parseMission(row["RealLifeMission"])
+  };
+}
+function loadIssuesFromSheet(){
+  if(!CONFIG.sheetCsvUrl) return Promise.resolve(null);
+  return fetch(CONFIG.sheetCsvUrl).then(r=>r.text()).then(csv=>{
+    const parsed = Papa.parse(csv, {header:true, skipEmptyLines:true});
+    const rows = parsed.data.filter(r=>r.IssueID && String(r.IssueID).trim());
+    if(!rows.length) return null;
+    return rows.map(rowToIssue);
+  }).catch(err=>{ console.warn("讀取 Google Sheet 失敗，使用內建範例資料", err); return null; });
+}
+
+/* ============ 章節定義 ============ */
+const SECTIONS = [
+  {key:"warmup",  emoji:"🔥", en:"Warm-Up",          zh:"暖身快問快答"},
+  {key:"cover",   emoji:"📰", en:"Cover Story",       zh:"本期主打文章"},
+  {key:"reading", emoji:"🔍", en:"Reading Check",     zh:"閱讀理解連擊戰"},
+  {key:"candy",   emoji:"🍭", en:"Word Candy",        zh:"單字翻卡配對"},
+  {key:"sayit",   emoji:"💬", en:"Say It Naturally",  zh:"實用句跟讀"},
+  {key:"grammar", emoji:"🧩", en:"Grammar Bite",      zh:"文法拼句挑戰"},
+  {key:"speakup", emoji:"🎤", en:"Speak Up",          zh:"60 秒口說挑戰"},
+  {key:"roleplay",emoji:"🧑‍🤝‍🧑", en:"Role-Play",     zh:"劇情對話冒險"},
+  {key:"writing", emoji:"✍️", en:"Mini Writing",      zh:"小寫作任務"},
+  {key:"quiz",    emoji:"🏆", en:"Quick Quiz",        zh:"魔王總測驗"},
+  {key:"mission", emoji:"🌍", en:"Real-Life Mission", zh:"真實世界任務"}
+];
+
+/* ============ 儲存（localStorage，失敗時退回記憶體） ============ */
+const store = (()=>{ let mem={};
+  return {
+    get(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return (k in mem)?mem[k]:d; } },
+    set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} mem[k]=v; }
+  };})();
+
+let S = store.get("englishpop_v1", {
+  student:null, xp:0, candy:0, streak:0, lastDay:"", badges:[], issues:{}
+});
+function save(){ store.set("englishpop_v1", S); }
+function issueProg(id){ if(!S.issues[id]) S.issues[id]={done:{}}; return S.issues[id]; }
+
+/* ============ 小工具 ============ */
+const $ = s=>document.querySelector(s);
+const stage = ()=>$("#stage");
+function esc(t){ return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),2200); }
+function sIV(el,opt){ try{ el.scrollIntoView(opt||{behavior:"smooth"}); }catch(e){} }
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function touchStreak(){
+  const today=todayStr();
+  if(S.lastDay===today) return;
+  const y=new Date(); y.setDate(y.getDate()-1);
+  S.streak = (S.lastDay===y.toISOString().slice(0,10)) ? S.streak+1 : 1;
+  S.lastDay=today; save();
+  toast("🔥 連續學習 "+S.streak+" 天！");
+}
+function updateHUD(){
+  $("#hud-av").textContent = S.student?S.student.av:"🙂";
+  $("#hud-name").textContent = S.student?S.student.name:"";
+  $("#hud-xp").textContent = S.xp;
+  $("#hud-candy").textContent = S.candy;
+  $("#hud-streak").textContent = S.streak;
+}
+function addXP(n){ S.xp+=n; save(); updateHUD(); }
+function flyCandy(fromEl, n){
+  n=n||1; const target=$("#hud-candy").getBoundingClientRect();
+  const from = fromEl ? fromEl.getBoundingClientRect() : {left:innerWidth/2, top:innerHeight/2};
+  for(let i=0;i<n;i++){
+    const f=document.createElement("div"); f.className="fly"; f.textContent="🍬";
+    f.style.left=(from.left+ (Math.random()*30-15))+"px"; f.style.top=(from.top)+"px";
+    document.body.appendChild(f);
+    requestAnimationFrame(()=>{ setTimeout(()=>{ f.style.left=target.left+"px"; f.style.top=target.top+"px"; f.style.opacity="0"; f.style.fontSize="12px"; }, i*90); });
+    setTimeout(()=>f.remove(), 1000+i*90);
+  }
+  setTimeout(()=>{ S.candy+=n; save(); updateHUD(); }, 850);
+}
+function confetti(){
+  const bits=["🎉","✨","🍬","⭐","🎈","💛","💖"];
+  for(let i=0;i<36;i++){
+    const b=document.createElement("div"); b.className="confetti-bit";
+    b.textContent=bits[Math.floor(Math.random()*bits.length)];
+    b.style.left=Math.random()*100+"vw";
+    b.style.animationDuration=(1.6+Math.random()*1.6)+"s";
+    document.body.appendChild(b); setTimeout(()=>b.remove(),3400);
+  }
+}
+/* ============ 語音：TTS 與語音辨識 ============ */
+let voiceEN=null;
+function pickVoice(){ const vs=speechSynthesis.getVoices();
+  voiceEN = vs.find(v=>/en[-_]US/i.test(v.lang)) || vs.find(v=>/^en/i.test(v.lang)) || null; }
+if("speechSynthesis" in window){ pickVoice(); speechSynthesis.onvoiceschanged=pickVoice; }
+function speak(text, rate){
+  if(!("speechSynthesis" in window)){ toast("這個瀏覽器不支援朗讀"); return; }
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang="en-US"; if(voiceEN) u.voice=voiceEN; u.rate=rate||0.92;
+  speechSynthesis.speak(u);
+}
+const ASR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+function listen(onResult, onEnd, onErr){
+  const r=new ASR(); r.lang="en-US"; r.interimResults=true; r.continuous=true;
+  let finalTxt="";
+  r.onresult=e=>{ let interim="";
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal) finalTxt+=e.results[i][0].transcript+" ";
+      else interim+=e.results[i][0].transcript; }
+    onResult(finalTxt, interim); };
+  r.onend=()=>onEnd&&onEnd(finalTxt);
+  r.onerror=e=>onErr&&onErr(e);
+  r.start(); return r;
+}
+function similarity(a,b){
+  const norm=s=>s.toLowerCase().replace(/[^a-z' ]/g," ").split(/\s+/).filter(Boolean);
+  const wa=norm(a), wb=new Set(norm(b));
+  if(!wa.length) return 0;
+  let hit=0; wa.forEach(w=>{ if(wb.has(w)) hit++; });
+  return hit/wa.length;
+}
+
+/* ============ 導覽 ============ */
+const AVATARS=["🦊","🐻","🐰","🐱","🐶","🦄","🐸","🐼","🐯","🦁"];
+function go(view, arg){
+  window.scrollTo(0,0);
+  if(view==="login") renderLogin();
+  else if(view==="levels") renderLevels();
+  else if(view==="issuemap") renderIssueMap(arg);
+  else if(view==="map") renderMap(arg||CURRENT_ISSUE);
+  else renderSection(arg.issue, arg.key);
+}
+let CURRENT_ISSUE = ISSUES[0];
+let CURRENT_TIER = CURRENT_ISSUE ? CURRENT_ISSUE.tier : 1;
+
+function sendProgress(record){
+  if(!CONFIG.progressWebhook) return;
+  try{
+    fetch(CONFIG.progressWebhook,{method:"POST",mode:"no-cors",
+      headers:{"Content-Type":"text/plain"},
+      body:JSON.stringify(Object.assign({student:S.student?S.student.name:"?", time:new Date().toISOString()},record))});
+  }catch(e){}
+}
+function completeSection(issue, key, opts){
+  opts=opts||{};
+  const p=issueProg(issue.id);
+  const first=!p.done[key];
+  p.done[key]=Object.assign({at:todayStr()}, opts.data||{});
+  if(first){ addXP(opts.xp||20); if(opts.candy) flyCandy(opts.candyFrom, opts.candy); }
+  touchStreak(); save();
+  sendProgress({issue:issue.id, section:key, score:opts.data&&opts.data.score!==undefined?opts.data.score:"", xp:opts.xp||20});
+  const idx=SECTIONS.findIndex(s=>s.key===key);
+  const allDone=SECTIONS.every(s=>p.done[s.key]);
+  setTimeout(()=>{
+    if(allDone && key==="mission"){ renderCelebrate(issue); }
+    else{
+      toast((first?("⭐ +"+(opts.xp||20)+" XP！"):"✅ 已更新！")+(idx<SECTIONS.length-1?" 下一關解鎖！":""));
+      renderMap(issue);
+    }
+  }, opts.delay||600);
+}
+
+/* ============ 登入 ============ */
+function renderLogin(){
+  $("#hud").classList.add("hidden");
+  let av=AVATARS[0];
+  stage().innerHTML = `
+    <div class="logo">🌈 ENGLISH<br><span class="pop">POP!</span></div>
+    <div class="logo-sub">英文闖關樂園 · 每期一場冒險</div>
+    <div class="card">
+      <div class="eyebrow">STEP 1 · 選一個頭像</div>
+      <div class="avatar-grid" id="avgrid">${AVATARS.map((a,i)=>`<button data-i="${i}" class="${i===0?'sel':''}">${a}</button>`).join("")}</div>
+      <div class="eyebrow mt24">STEP 2 · 你的名字</div>
+      <input class="name-input mt8" id="name-in" maxlength="12" placeholder="輸入名字或英文暱稱">
+      <button class="btn pink block mt24" id="start-btn">🚀 開始冒險！</button>
+    </div>
+    <footer class="mini">免費學習資源 · 你的進度會保存在這台裝置上</footer>`;
+  $("#avgrid").addEventListener("click",e=>{
+    const b=e.target.closest("button"); if(!b) return;
+    document.querySelectorAll("#avgrid button").forEach(x=>x.classList.remove("sel"));
+    b.classList.add("sel"); av=AVATARS[+b.dataset.i];
+  });
+  $("#start-btn").addEventListener("click",()=>{
+    const name=$("#name-in").value.trim();
+    if(!name){ toast("先輸入名字喔！"); return; }
+    S.student={name, av}; save(); updateHUD();
+    confetti(); toast("歡迎加入，"+name+"！");
+    renderLevels();
+  });
+}
+
+/* ============ 選等級（4 個世界） ============ */
+function levelStats(tier){
+  const list=ISSUES.filter(i=>i.tier===tier);
+  const done=list.filter(i=>S.badges.includes(i.id)).length;
+  return {count:list.length, done};
+}
+function renderLevels(){
+  $("#hud").classList.remove("hidden"); updateHUD();
+  stage().innerHTML = `
+    <div class="center mt16">
+      <div class="disp" style="font-size:22px;font-weight:800">選一個世界開始冒險 🗺️</div>
+      <div class="zh" style="color:var(--muted);font-weight:700;font-size:13px">依難易度分成 4 個等級，隨時可以切換</div>
+    </div>
+    <div class="level-grid">
+      ${LEVELS.map(l=>{
+        const st=levelStats(l.tier);
+        const empty = st.count===0;
+        return `<button class="level-card ${l.reco?'reco':''}" data-tier="${l.tier}" ${empty?"disabled":""}>
+          ${l.reco?'<span class="reco-tag">推薦</span>':""}
+          <div class="ic" style="background:var(--${l.cls}-soft,var(--yellow-soft))">${l.icon}</div>
+          <div class="name">${esc(l.name)}</div>
+          <div class="code">Level ${l.tier} · ${esc(l.code)}</div>
+          <div class="stat" style="color:${empty?'var(--muted)':'var(--teal)'}">${empty?"尚未有內容":(st.count+" 篇 · 已完成 "+st.done)}</div>
+        </button>`;
+      }).join("")}
+    </div>
+    <footer class="mini">English POP! · 免費非營利英語學習</footer>`;
+  document.querySelectorAll(".level-card").forEach(b=>{
+    b.addEventListener("click",()=>renderIssueMap(+b.dataset.tier));
+  });
+}
+
+/* ============ 選 Issue（單一等級內的期數地圖） ============ */
+function renderIssueMap(tier){
+  CURRENT_TIER=tier;
+  $("#hud").classList.remove("hidden"); updateHUD();
+  const level=LEVELS.find(l=>l.tier===tier);
+  const list=ISSUES.filter(i=>i.tier===tier);
+  stage().innerHTML = `
+    <button class="back-link" id="lvl-back">← 選單</button>
+    <div class="issue-banner">
+      <span class="lvl">${esc(level.code)}</span>
+      <div class="eyebrow" style="color:#D9CEFF">LEVEL ${level.tier}</div>
+      <h1>${level.icon} ${esc(level.name)}</h1>
+      <div class="meta">共 ${list.length} 篇 Issue</div>
+    </div>
+    <div class="imap" id="imap">
+      ${list.map((iss,i)=>{
+        const p=issueProg(iss.id);
+        const done=SECTIONS.every(s=>p.done[s.key]);
+        const started=SECTIONS.some(s=>p.done[s.key]);
+        const state=done?"done":(started?"now":"new");
+        const side=i%2?"right":"";
+        return `<div class="istop ${state} ${side}">
+          <button class="node" data-id="${esc(iss.id)}">${done?"✅":esc(iss.id)}</button>
+          <div class="info"><div class="t">Issue ${esc(iss.id)}</div><div class="zh">${esc(iss.title)}</div></div>
+        </div>`;
+      }).join("") || '<p class="center" style="color:var(--muted);font-weight:700">這個等級還沒有 Issue，敬請期待！</p>'}
+    </div>
+    <footer class="mini">English POP! · 免費非營利英語學習</footer>`;
+  $("#lvl-back").addEventListener("click",renderLevels);
+  $("#imap").addEventListener("click",e=>{
+    const b=e.target.closest("button.node"); if(!b) return;
+    const iss=list.find(x=>x.id===b.dataset.id); if(iss) renderMap(iss);
+  });
+}
+
+/* ============ 闖關地圖 ============ */
+function unlockedIndex(issue){
+  const p=issueProg(issue.id);
+  for(let i=0;i<SECTIONS.length;i++){ if(!p.done[SECTIONS[i].key]) return i; }
+  return SECTIONS.length;
+}
+function renderMap(issue){
+  CURRENT_ISSUE=issue;
+  $("#hud").classList.remove("hidden"); updateHUD();
+  const p=issueProg(issue.id);
+  const cur=unlockedIndex(issue);
+  const doneCount=SECTIONS.filter(s=>p.done[s.key]).length;
+  const pct=Math.round(doneCount/SECTIONS.length*100);
+  stage().innerHTML = `
+    <button class="back-link" id="map-back">← 回 Issue 地圖</button>
+    <div class="issue-banner">
+      <span class="lvl">Level ${esc(issue.level)}</span>
+      <div class="eyebrow" style="color:#D9CEFF">ISSUE ${esc(issue.id)}</div>
+      <h1>${esc(issue.title)}</h1>
+      <div class="meta">⏰ ${esc(issue.time)} ｜ 🎯 完成 ${doneCount}/${SECTIONS.length} 關</div>
+      <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+    </div>
+    <div class="card" style="padding:14px 18px">
+      <div class="eyebrow">🎯 TODAY'S GOALS 完成這一期後，我可以…</div>
+      <ul class="goal-list mt8">${issue.goals.map(g=>`<li>✅ ${esc(g)}</li>`).join("")}</ul>
+    </div>
+    <div class="map" id="map">
+      ${SECTIONS.map((s,i)=>{
+        const done=!!p.done[s.key];
+        const state=done?"done":(i===cur?"now":(i<cur?"done":"locked"));
+        const side=i%2?"right":"";
+        return `<div class="stop ${state} ${side}">
+          <button class="node" data-i="${i}" ${state==="locked"?"disabled":""} aria-label="${esc(s.en)}">
+            ${state==="locked"?"🔒":s.emoji}
+            ${done?'<span class="check">✅</span>':""}
+          </button>
+          <div class="info"><div class="t">${esc(s.en)}</div><div class="zh">${esc(s.zh)}</div></div>
+        </div>`;
+      }).join("")}
+    </div>
+    ${S.badges.includes(issue.id)?`<div class="center"><span class="done-stamp">🏅 Issue ${esc(issue.id)} 徽章已入手！</span></div>`:""}
+    <button class="btn ghost block mt24" id="pdf-btn">📄 匯出 PDF 給老師討論</button>
+    <footer class="mini">English POP! · 免費非營利英語學習</footer>`;
+  $("#map-back").addEventListener("click",()=>renderIssueMap(issue.tier||1));
+  $("#pdf-btn").addEventListener("click",()=>exportIssuePDF(issue));
+  $("#map").addEventListener("click",e=>{
+    const b=e.target.closest("button.node"); if(!b||b.disabled) return;
+    renderSection(issue, SECTIONS[+b.dataset.i].key);
+  });
+}
+
+/* ============ 章節外框 ============ */
+function sectionShell(issue, key, bodyHTML){
+  const meta=SECTIONS.find(s=>s.key===key);
+  stage().innerHTML = `
+    <div class="back-row">
+      <button class="btn small ghost" id="back-btn">← 回地圖</button>
+      <span class="tag">ISSUE ${esc(issue.id)}</span>
+    </div>
+    <div class="sec-head">
+      <div class="emoji">${meta.emoji}</div>
+      <div><h2>${esc(meta.en)}</h2><div class="zh">${esc(meta.zh)}</div></div>
+    </div>
+    <div id="sec-body">${bodyHTML}</div>`;
+  $("#back-btn").addEventListener("click",()=>renderMap(issue));
+}
+function renderSection(issue, key){
+  window.scrollTo(0,0);
+  ({warmup:renderWarmup, cover:renderCover, reading:renderReading, candy:renderCandy,
+    sayit:renderSayIt, grammar:renderGrammar, speakup:renderSpeakUp, roleplay:renderRoleplay,
+    writing:renderWriting, quiz:renderQuiz, mission:renderMission})[key](issue);
+}
+
+/* ============ 慶祝畫面 ============ */
+function renderCelebrate(issue){
+  confetti();
+  if(!S.badges.includes(issue.id)){ S.badges.push(issue.id); save(); }
+  stage().innerHTML = `
+    <div class="card center" style="margin-top:40px">
+      <div class="badge-big">🏅</div>
+      <h2 class="disp" style="font-size:26px">GREAT JOB, ${esc(S.student.name)}!</h2>
+      <p class="mt8" style="font-weight:700">你完成了 Issue ${esc(issue.id)}：${esc(issue.title)}！</p>
+      <div class="mt16" style="text-align:left">
+        <div class="eyebrow">今天你練習了：</div>
+        <ul class="goal-list mt8">${issue.goals.map(g=>`<li>✅ ${esc(g)}</li>`).join("")}</ul>
+      </div>
+      <p class="mt16" style="font-weight:700;color:var(--muted)">Small conversations can lead to great friendships. 🚀</p>
+      <button class="btn pink block mt24" id="cele-back">回到地圖</button>
+    </div>`;
+  $("#cele-back").addEventListener("click",()=>renderMap(issue));
+}
+
+/* ============ 🔥 Warm-Up ============ */
+function renderWarmup(issue){
+  const qs=issue.warmup.questions; let i=0; const answers=[];
+  sectionShell(issue,"warmup",`
+    <div class="card">
+      <p style="font-weight:700">${esc(issue.warmup.intro)}</p>
+      <div id="wu-box" class="mt16"></div>
+    </div>`);
+  function show(){
+    const q=qs[i];
+    $("#wu-box").innerHTML=`
+      <div class="eyebrow">QUESTION ${i+1} / ${qs.length}</div>
+      <div class="para"><div class="row">
+        <button class="speak-btn" id="wu-tts">🔊</button>
+        <div style="font-weight:800;font-size:16px">${esc(q.q)}</div>
+      </div></div>
+      <div style="font-size:13px;color:var(--muted);font-weight:700">💡 ${esc(q.hint)}</div>
+      <textarea class="write-area mt8" id="wu-in" style="min-height:90px" placeholder="My answer..."></textarea>
+      ${ASR?'<button class="btn small teal mt8" id="wu-mic">🎙️ 用說的</button>':""}
+      <button class="btn pink block mt16" id="wu-next">${i<qs.length-1?"下一題 →":"完成暖身！"}</button>`;
+    $("#wu-tts").onclick=()=>speak(q.q);
+    if(ASR){ let rec=null;
+      $("#wu-mic").onclick=function(){
+        if(rec){ rec.stop(); return; }
+        this.textContent="🔴 錄音中… 再按一下結束";
+        rec=listen((fin,inter)=>{ $("#wu-in").value=(fin+inter).trim(); },
+          ()=>{ rec=null; const b=$("#wu-mic"); if(b) b.textContent="🎙️ 用說的"; },
+          ()=>{ toast("聽不太清楚，再試一次或改用打字"); });
+      };}
+    $("#wu-next").onclick=()=>{
+      const v=$("#wu-in").value.trim();
+      if(v.length<2){ toast("寫一點點就好，不用完美！"); return; }
+      answers.push(v);
+      if(i<qs.length-1){ i++; show(); toast("很好！下一題 💪"); }
+      else completeSection(issue,"warmup",{xp:15, data:{answers}});
+    };
+  }
+  show();
+}
+
+/* ============ 📰 Cover Story ============ */
+function renderCover(issue){
+  const paras=issue.cover.paragraphs; let shown=0; let guessed=false;
+  sectionShell(issue,"cover",`
+    <div class="card" id="cv-guess">
+      <div class="eyebrow">BEFORE YOU READ · 讀前預測</div>
+      <p class="mt8" style="font-weight:700">${esc(issue.cover.before)}</p>
+      <textarea class="write-area mt8" id="cv-in" style="min-height:70px" placeholder="My guess..."></textarea>
+      <button class="btn purple block mt16" id="cv-go">開始閱讀 📖</button>
+    </div>
+    <div id="cv-art"></div>
+    <div class="center hidden" id="cv-more"><button class="btn yellow" id="cv-next">繼續讀 ⬇️</button></div>
+    <div class="hidden" id="cv-done-box">
+      <div class="card center">
+        <p style="font-weight:800">📖 全文讀完了！要不要聽一次完整朗讀？</p>
+        <button class="btn small ghost mt8" id="cv-all">🔊 全文朗讀</button>
+        <button class="btn pink block mt16" id="cv-done">我讀懂了，完成！</button>
+      </div>
+    </div>`);
+  $("#cv-go").onclick=()=>{
+    if($("#cv-in").value.trim().length<2){ toast("先猜猜看，猜錯也沒關係！"); return; }
+    guessed=true; $("#cv-guess").classList.add("hidden");
+    $("#cv-more").classList.remove("hidden"); next();
+  };
+  function next(){
+    const p=paras[shown];
+    const div=document.createElement("div"); div.className="para";
+    div.innerHTML=`<div class="row"><button class="speak-btn">🔊</button><div>${esc(p)}</div></div>`;
+    div.querySelector(".speak-btn").onclick=()=>speak(p);
+    $("#cv-art").appendChild(div);
+    shown++;
+    if(shown>=paras.length){ $("#cv-more").classList.add("hidden"); $("#cv-done-box").classList.remove("hidden"); }
+  }
+  $("#cv-next").onclick=next;
+  $("#cv-all").onclick=()=>speak(paras.join(" "));
+  $("#cv-done").onclick=()=>completeSection(issue,"cover",{xp:20});
+}
+
+/* ============ 🔍 Reading Check（連擊戰） ============ */
+function renderReading(issue){
+  const qs=issue.reading; let i=0, combo=0, best=0, score=0;
+  sectionShell(issue,"reading",`
+    <div class="card"><p style="font-weight:700">答對會累積 <b>COMBO 連擊</b>，連擊越高分數加倍！答錯不扣分，但連擊會歸零 😆</p></div>
+    <div id="rc-box"></div>`);
+  function showCombo(){
+    const c=$("#combo");
+    if(combo>=2){ c.textContent="COMBO ×"+combo; c.classList.add("show"); setTimeout(()=>c.classList.remove("show"),1200); }
+  }
+  function show(){
+    const q=qs[i]; const open=q.ans===-1;
+    $("#rc-box").innerHTML=`
+      <div class="card">
+        <div class="eyebrow">Q${i+1} / ${qs.length} ${combo>=2?("· 🔥 combo ×"+combo):""}</div>
+        <div class="mt8" style="display:flex;gap:10px;align-items:flex-start">
+          <button class="speak-btn" id="rc-tts">🔊</button>
+          <p style="font-weight:800">${esc(q.q)}</p>
+        </div>
+        <div class="mt8" id="rc-opts">
+          ${q.opts.map((o,k)=>`<button class="choice" data-k="${k}">${String.fromCharCode(65+k)}. ${esc(o)}</button>`).join("")}
+        </div>
+        <div id="rc-fb"></div>
+      </div>`;
+    $("#rc-tts").onclick=()=>speak(q.q.replace(/^💭.*—/,""));
+    $("#rc-opts").addEventListener("click",e=>{
+      const b=e.target.closest(".choice"); if(!b) return;
+      document.querySelectorAll("#rc-opts .choice").forEach(x=>x.style.pointerEvents="none");
+      const k=+b.dataset.k;
+      if(open){ b.classList.add("correct");
+        $("#rc-fb").innerHTML='<div class="feedback good">💡 很棒的選擇！這題沒有標準答案。</div>';
+        combo++; best=Math.max(best,combo); score++; showCombo();
+        setTimeout(nextQ,900); return; }
+      if(k===q.ans){ b.classList.add("correct"); combo++; best=Math.max(best,combo); score++;
+        $("#rc-fb").innerHTML='<div class="feedback good">✅ 答對了！'+(q.explain?esc(q.explain):"")+'</div>';
+        showCombo(); setTimeout(nextQ,900);
+      }else{
+        b.classList.add("wrong"); combo=0;
+        const right=document.querySelector('#rc-opts .choice[data-k="'+q.ans+'"]');
+        $("#rc-fb").innerHTML='<div class="feedback bad">💥 Combo 中斷！正確答案亮起來了。'+(q.explain?" "+esc(q.explain):"")+'</div>';
+        setTimeout(()=>{ right.classList.add("correct"); },400);
+        setTimeout(nextQ,1800);
+      }
+    });
+  }
+  function nextQ(){
+    if(i<qs.length-1){ i++; show(); }
+    else{
+      const xp=10*score + best*5;
+      stage().querySelector("#rc-box").innerHTML=`
+        <div class="card center">
+          <div class="badge-big">${score>=4?"🌟":"💪"}</div>
+          <h2 class="disp">答對 ${score} / ${qs.length} 題</h2>
+          <p style="font-weight:700">最高連擊 ×${best} ｜ 獲得 ⭐ ${xp} XP</p>
+          <button class="btn pink block mt16" id="rc-fin">收下獎勵！</button>
+        </div>`;
+      $("#rc-fin").onclick=()=>completeSection(issue,"reading",{xp, data:{score, best}});
+    }
+  }
+  show();
+}
+
+/* ============ 🍭 Word Candy ============ */
+function renderCandy(issue){
+  sectionShell(issue,"candy",`
+    <div class="card"><p style="font-weight:700">先翻翻 <b>單字卡</b> 認識 5 個新字，然後玩 <b>記憶配對</b>——每配對成功就掉 1 顆糖進你的糖果罐 🍬</p></div>
+    <div class="eyebrow">STEP 1 · 單字卡（點 🔊 聽發音）</div>
+    <div id="wc-cards"></div>
+    <button class="btn purple block" id="wc-play">我記好了，開始配對遊戲 🎮</button>
+    <div class="hidden" id="wc-game">
+      <div class="eyebrow mt24">STEP 2 · 記憶配對：把單字和意思配成對</div>
+      <div class="mem-grid" id="wc-grid"></div>
+      <div class="center mt8" style="font-weight:800" id="wc-count"></div>
+    </div>`);
+  $("#wc-cards").innerHTML = issue.words.map(w=>`
+    <div class="flashcard">
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="speak-btn" data-say="${esc(w.w)}">🔊</button>
+        <div><span class="w">${esc(w.w)}</span> <span class="pos">${esc(w.pos)}</span>
+          <div style="font-weight:800">${esc(w.zh)} · <span style="color:var(--muted);font-weight:600">${esc(w.def)}</span></div></div>
+      </div>
+      <div class="ex" style="background:#FBF9FF;border:2px dashed #CFC4E8;border-radius:12px;padding:8px 12px;margin-top:8px;font-size:14px;font-weight:600">
+        ✏️ ${esc(w.ex)} <button class="speak-btn" style="width:28px;height:28px;font-size:12px" data-say="${esc(w.ex)}">🔊</button></div>
+    </div>`).join("");
+  $("#wc-cards").addEventListener("click",e=>{ const b=e.target.closest("[data-say]"); if(b) speak(b.dataset.say); });
+  $("#wc-play").onclick=()=>{
+    $("#wc-play").classList.add("hidden"); $("#wc-game").classList.remove("hidden");
+    startMatch();
+    sIV($("#wc-game"));
+  };
+  function startMatch(){
+    const pairs=issue.match;
+    let cells=[];
+    pairs.forEach((p,i)=>{ cells.push({id:i,txt:p.w,kind:"w"}); cells.push({id:i,txt:p.m,kind:"m"}); });
+    cells.sort(()=>Math.random()-.5);
+    let matched=0, open=null, lock=false;
+    $("#wc-count").textContent="已配對 0 / "+pairs.length;
+    $("#wc-grid").innerHTML=cells.map((c,k)=>`
+      <button class="mem-card" data-id="${c.id}" data-k="${k}">
+        <span class="qm">🍬</span><span class="face">${esc(c.txt)}</span>
+      </button>`).join("");
+    $("#wc-grid").addEventListener("click",e=>{
+      const b=e.target.closest(".mem-card"); if(!b||lock||b.classList.contains("flipped")||b.classList.contains("matched")) return;
+      b.classList.add("flipped");
+      if(b.dataset.id!==undefined && cells[+b.dataset.k].kind==="w") speak(cells[+b.dataset.k].txt);
+      if(!open){ open=b; return; }
+      lock=true;
+      if(open.dataset.id===b.dataset.id && open!==b){
+        setTimeout(()=>{ open.classList.add("matched"); b.classList.add("matched");
+          matched++; flyCandy(b,1); toast("🍬 配對成功！");
+          $("#wc-count").textContent="已配對 "+matched+" / "+pairs.length;
+          open=null; lock=false;
+          if(matched===pairs.length){
+            setTimeout(()=>completeSection(issue,"candy",{xp:25, data:{score:matched}}),700);
+          }
+        },350);
+      }else{
+        setTimeout(()=>{ open.classList.remove("flipped"); b.classList.remove("flipped"); open=null; lock=false; },800);
+      }
+    });
+  }
+}
+
+/* ============ 💬 Say It Naturally ============ */
+function renderSayIt(issue){
+  const ex=issue.expressions; let doneCount=0; const doneSet=new Set();
+  sectionShell(issue,"sayit",`
+    <div class="card"><p style="font-weight:700">5 句超實用口語！每一句：先按 🔊 聽示範，再${ASR?"按 🎙️ 大聲跟讀，看看能拿幾顆星":"大聲跟讀 3 次，然後按「我唸完了」"}。</p></div>
+    <div id="si-list"></div>
+    <button class="btn pink block hidden" id="si-fin">全部練完，完成！</button>`);
+  $("#si-list").innerHTML = ex.map((e,i)=>`
+    <div class="expr-card" data-i="${i}">
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="speak-btn si-tts">🔊</button>
+        <div><div class="en">${esc(e.en)}</div><div class="zh">${esc(e.zh)}</div></div>
+      </div>
+      <div style="font-size:13px;color:var(--muted);font-weight:700;margin-top:6px">🕐 ${esc(e.when)}</div>
+      <div class="ex">A: ${esc(e.exA)}<br>B: ${esc(e.exB)} <button class="speak-btn si-ex" style="width:28px;height:28px;font-size:12px">🔊</button></div>
+      <div class="mt8" style="display:flex;align-items:center;gap:10px">
+        ${ASR?'<button class="btn small teal si-mic">🎙️ 跟讀挑戰</button>':'<button class="btn small teal si-self">✅ 我唸完了</button>'}
+        <span class="stars si-stars"></span>
+      </div>
+      <div class="transcript hidden si-heard"></div>
+    </div>`).join("");
+  const list=$("#si-list");
+  list.addEventListener("click",ev=>{
+    const card=ev.target.closest(".expr-card"); if(!card) return;
+    const i=+card.dataset.i, e=ex[i];
+    if(ev.target.closest(".si-tts")) speak(e.en);
+    if(ev.target.closest(".si-ex")) speak(e.exA+" ... "+e.exB);
+    if(ev.target.closest(".si-self")){ markDone(card,i,3); }
+    if(ev.target.closest(".si-mic")){
+      const btn=ev.target.closest(".si-mic"), heard=card.querySelector(".si-heard");
+      if(btn._rec){ btn._rec.stop(); return; }
+      heard.classList.remove("hidden"); heard.textContent="🔴 請大聲說： "+e.en;
+      btn.textContent="⏹ 結束";
+      btn._rec=listen((fin,inter)=>{ heard.textContent=(fin+inter)||"…聽你說…"; },
+        fin=>{ btn._rec=null; btn.textContent="🎙️ 跟讀挑戰";
+          const sim=similarity(e.en, fin);
+          const stars= sim>=0.8?3 : sim>=0.5?2 : sim>0?1:0;
+          if(stars===0){ heard.textContent="沒聽清楚，再試一次！（也可以說慢一點）"; return; }
+          markDone(card,i,stars);
+        },
+        ()=>{ btn._rec=null; btn.textContent="🎙️ 跟讀挑戰"; toast("麥克風沒有回應，可改用自評模式"); heard.innerHTML='<button class="btn small ghost si-self">✅ 我唸完了（自評）</button>'; });
+    }
+  });
+  function markDone(card,i,stars){
+    card.querySelector(".si-stars").textContent="⭐".repeat(stars);
+    if(!doneSet.has(i)){ doneSet.add(i); doneCount++; toast("完成 "+doneCount+"/"+ex.length+" 句！"); }
+    if(doneCount>=ex.length) $("#si-fin").classList.remove("hidden");
+  }
+  $("#si-fin").onclick=()=>completeSection(issue,"sayit",{xp:25, data:{score:doneCount}});
+}
+
+/* ============ 🧩 Grammar Bite ============ */
+function renderGrammar(issue){
+  const g=issue.grammar; let step=-1; let correct=0;
+  sectionShell(issue,"grammar",`
+    <div class="card">
+      <span class="tag">📚 ${esc(g.name)}</span>
+      <p class="mt8" style="font-family:var(--font-display);font-weight:800;font-size:18px">${esc(g.pattern)}</p>
+      <p class="mt8" style="font-weight:600">${esc(g.explain)}</p>
+      <div class="mt8">${g.examples.map(e=>`
+        <div class="ex" style="background:#FBF9FF;border:2px dashed #CFC4E8;border-radius:12px;padding:8px 12px;margin-top:6px;font-size:14px;font-weight:700;display:flex;gap:8px;align-items:center">
+          <button class="speak-btn" style="width:28px;height:28px;font-size:12px" data-say="${esc(e)}">🔊</button>${esc(e)}</div>`).join("")}</div>
+      <button class="btn purple block mt16" id="gb-start">開始挑戰 🧩</button>
+    </div>
+    <div id="gb-box"></div>
+    <div class="card mt16" id="gb-mistake">
+      <div class="eyebrow">🚨 COMMON MISTAKE 常見錯誤</div>
+      <p class="mt8" style="font-weight:800;color:var(--red)">❌ ${esc(issue.mistake.dont)}</p>
+      ${issue.mistake.say.map(s=>`<p style="font-weight:800;color:var(--teal)">✅ ${esc(s)}</p>`).join("")}
+      <p class="mt8" style="font-weight:600;font-size:14px">${esc(issue.mistake.why)}</p>
+    </div>`);
+  stage().addEventListener("click",e=>{ const b=e.target.closest("[data-say]"); if(b) speak(b.dataset.say); });
+  $("#gb-start").onclick=()=>{ $("#gb-start").classList.add("hidden"); step=0; show(); sIV($("#gb-box")); };
+  const practice=g.practice.concat([Object.assign({type:"choice"}, issue.mistake.fix)]);
+  function show(){
+    const p=practice[step];
+    if(p.type==="order"){
+      let pool=p.words.slice().sort(()=>Math.random()-.5), built=[];
+      $("#gb-box").innerHTML=`
+        <div class="card">
+          <div class="eyebrow">挑戰 ${step+1}/${practice.length} · ${esc(p.zh)}</div>
+          <div class="chip-row" id="gb-ans"></div>
+          <div class="chip-row" id="gb-pool" style="border-style:solid;border-color:transparent;background:none"></div>
+          <div id="gb-fb"></div>
+        </div>`;
+      function draw(){
+        $("#gb-ans").innerHTML=built.map((w,k)=>`<button class="chip" data-from="ans" data-k="${k}">${esc(w)}</button>`).join("")||'<span style="color:var(--muted);font-weight:700;font-size:13px">👇 點下面的單字組句子</span>';
+        $("#gb-pool").innerHTML=pool.map((w,k)=>`<button class="chip" data-from="pool" data-k="${k}">${esc(w)}</button>`).join("");
+        if(!pool.length){
+          const s=built.join(" ");
+          if(s===p.ans){ $("#gb-fb").innerHTML='<div class="feedback good">✅ 正確！'+esc(p.ans)+'</div>'; speak(p.ans); correct++; setTimeout(nextStep,1200); }
+          else{ $("#gb-fb").innerHTML='<div class="feedback bad">🤔 順序不對，點句子裡的字放回去再試！</div>'; }
+        } else $("#gb-fb").innerHTML="";
+      }
+      $("#gb-box").onclick=e=>{
+        const c=e.target.closest(".chip"); if(!c) return;
+        const k=+c.dataset.k;
+        if(c.dataset.from==="pool"){ built.push(pool.splice(k,1)[0]); } else { pool.push(built.splice(k,1)[0]); }
+        draw();
+      };
+      draw();
+    } else {
+      $("#gb-box").innerHTML=`
+        <div class="card">
+          <div class="eyebrow">挑戰 ${step+1}/${practice.length}</div>
+          <p class="mt8" style="font-weight:800">${esc(p.q)}</p>
+          <div id="gb-opts">${p.opts.map((o,k)=>`<button class="choice" data-k="${k}">${String.fromCharCode(65+k)}. ${esc(o)}</button>`).join("")}</div>
+          <div id="gb-fb"></div>
+        </div>`;
+      $("#gb-opts").onclick=e=>{
+        const b=e.target.closest(".choice"); if(!b) return;
+        document.querySelectorAll("#gb-opts .choice").forEach(x=>x.style.pointerEvents="none");
+        if(+b.dataset.k===p.ans){ b.classList.add("correct"); correct++;
+          $("#gb-fb").innerHTML='<div class="feedback good">✅ 答對了！</div>'; setTimeout(nextStep,900); }
+        else{ b.classList.add("wrong");
+          document.querySelector('#gb-opts .choice[data-k="'+p.ans+'"]').classList.add("correct");
+          $("#gb-fb").innerHTML='<div class="feedback bad">再看一次正確答案 👀</div>'; setTimeout(nextStep,1700); }
+      };
+    }
+  }
+  function nextStep(){
+    step++;
+    if(step<practice.length) show();
+    else{
+      const xp=15+correct*8;
+      $("#gb-box").innerHTML=`<div class="card center">
+        <div class="badge-big">🧩</div>
+        <h2 class="disp">答對 ${correct}/${practice.length}</h2>
+        <button class="btn pink block mt16" id="gb-fin">收下 ⭐ ${xp} XP</button></div>`;
+      $("#gb-fin").onclick=()=>completeSection(issue,"grammar",{xp, data:{score:correct}});
+    }
+  }
+}
+
+/* ============ 🎤 Speak Up ============ */
+function renderSpeakUp(issue){
+  const sp=issue.speakup;
+  sectionShell(issue,"speakup",`
+    <div class="card">
+      <span class="tag">⏱ 60 秒挑戰</span>
+      <p class="mt8" style="font-weight:800">${esc(sp.topic)}</p>
+      <div class="eyebrow mt16">你可以聊：</div>
+      <ul class="goal-list">${sp.talkAbout.map(t=>`<li>• ${esc(t)}</li>`).join("")}</ul>
+      <div class="eyebrow mt16">好用開頭句（點 🔊 聽）：</div>
+      ${sp.starters.map(s=>`<div class="ex" style="background:#FBF9FF;border:2px dashed #CFC4E8;border-radius:12px;padding:6px 12px;margin-top:6px;font-size:14px;font-weight:700;display:flex;gap:8px;align-items:center">
+        <button class="speak-btn" style="width:28px;height:28px;font-size:12px" data-say="${esc(s.replace(/…/g,''))}">🔊</button>${esc(s)}</div>`).join("")}
+      <button class="btn small ghost mt16" id="su-sample">🔊 聽 Kevin 的示範</button>
+    </div>
+    <div class="card center">
+      <div class="timer" id="su-timer">0:00</div>
+      <div class="mic-btn" id="su-mic" role="button" aria-label="開始挑戰">🎙️</div>
+      <div style="font-weight:700;font-size:14px;color:var(--muted)">${ASR?"按麥克風開始說，你說到的目標句會亮起來！":"按麥克風開始計時，大聲說滿 60 秒！"}</div>
+      <div id="su-targets" class="mt8" style="font-size:13px;font-weight:700;text-align:left"></div>
+      <div class="transcript hidden" id="su-tr"></div>
+      <button class="btn pink block mt16 hidden" id="su-fin">完成挑戰！</button>
+    </div>`);
+  stage().addEventListener("click",e=>{ const b=e.target.closest("[data-say]"); if(b) speak(b.dataset.say); });
+  $("#su-sample").onclick=()=>speak(sp.sample);
+  const tEl=$("#su-timer"); let sec=0, iv=null, rec=null, hits=new Set();
+  function drawTargets(){
+    $("#su-targets").innerHTML="目標句： "+sp.targets.map(t=>hits.has(t)?`<span class="hl">${esc(t)}</span>`:`<span style="color:var(--muted)">${esc(t)}</span>`).join(" · ");
+  }
+  drawTargets();
+  $("#su-mic").onclick=function(){
+    if(iv){ stopAll(); return; }
+    this.classList.add("rec"); this.textContent="⏹";
+    sec=0; iv=setInterval(()=>{ sec++;
+      tEl.textContent=Math.floor(sec/60)+":"+String(sec%60).padStart(2,"0");
+      if(sec>=60){ tEl.style.background="var(--teal-soft)"; $("#su-fin").classList.remove("hidden"); }
+      if(sec>=95) stopAll();
+    },1000);
+    if(ASR){
+      $("#su-tr").classList.remove("hidden"); $("#su-tr").textContent="…開始說吧…";
+      rec=listen((fin,inter)=>{
+        const all=(fin+" "+inter).toLowerCase();
+        $("#su-tr").textContent=fin+inter;
+        sp.targets.forEach(t=>{ if(all.includes(t)) hits.add(t); });
+        drawTargets();
+      },()=>{rec=null;},()=>{});
+    }
+  };
+  function stopAll(){
+    clearInterval(iv); iv=null; if(rec){rec.stop();rec=null;}
+    const m=$("#su-mic"); m.classList.remove("rec"); m.textContent="🎙️";
+    if(sec>=45) $("#su-fin").classList.remove("hidden");
+    else toast("再多說一點！目標是 60 秒 💪");
+  }
+  $("#su-fin").onclick=()=>{
+    stopAll();
+    completeSection(issue,"speakup",{xp:30+hits.size*5, data:{seconds:sec, targetsHit:hits.size}});
+  };
+}
+
+/* ============ 🧑‍🤝‍🧑 Role-Play ============ */
+function renderRoleplay(issue){
+  const rp=issue.roleplay; let turn=0, pts=0; const maxPts=rp.turns.reduce((a,t)=>a+Math.max(...t.opts.map(o=>o.pt)),0);
+  sectionShell(issue,"roleplay",`
+    <div class="card"><p style="font-weight:700">${esc(rp.situation)}</p>
+      <div class="meter mt8">💗 好感度 <div class="track"><div class="fill" id="rp-meter" style="width:0%"></div></div></div>
+    </div>
+    <div class="chat" id="rp-chat"></div>
+    <div class="card" id="rp-opts-box"><div class="eyebrow">選一句回應（點 🔊 先聽，選了就大聲唸！）</div><div id="rp-opts"></div></div>`);
+  const chat=$("#rp-chat");
+  function npcSay(text){
+    const d=document.createElement("div"); d.className="bubble npc";
+    d.innerHTML=`<b>${rp.npcAv} ${esc(rp.npcName)}：</b> ${esc(text)} <button class="speak-btn" style="width:26px;height:26px;font-size:11px">🔊</button>`;
+    d.querySelector("button").onclick=()=>speak(text);
+    chat.appendChild(d); speak(text);
+    sIV(d,{behavior:"smooth",block:"center"});
+  }
+  function meSay(text){
+    const d=document.createElement("div"); d.className="bubble me";
+    d.innerHTML=`${esc(text)}`;
+    chat.appendChild(d); sIV(d,{behavior:"smooth",block:"center"});
+  }
+  function showTurn(){
+    const t=rp.turns[turn]; npcSay(t.npc);
+    $("#rp-opts").innerHTML=t.opts.map((o,k)=>`
+      <button class="choice" data-k="${k}">
+        <span style="display:flex;gap:8px;align-items:center">
+          <span class="speak-btn rp-listen" style="width:28px;height:28px;font-size:12px">🔊</span>
+          <span>${esc(o.t.replace("{name}", S.student.name))}<span style="display:block;font-size:12px;color:var(--muted)">${esc(o.zh)}</span></span>
+        </span>
+      </button>`).join("");
+    $("#rp-opts").onclick=e=>{
+      const lb=e.target.closest(".rp-listen");
+      const b=e.target.closest(".choice"); if(!b) return;
+      const o=t.opts[+b.dataset.k]; const line=o.t.replace("{name}", S.student.name);
+      if(lb){ speak(line); e.stopPropagation(); return; }
+      pts+=o.pt;
+      $("#rp-meter").style.width=Math.round(pts/maxPts*100)+"%";
+      meSay(line); speak(line);
+      if(o.pt>=2) toast("💗 Leo 好感度上升！");
+      $("#rp-opts").innerHTML=""; turn++;
+      setTimeout(()=>{ if(!$("#rp-opts")&&!$("#rp-opts-box")) return; if(turn<rp.turns.length) showTurn(); else ending(); },1400);
+    };
+  }
+  function ending(){
+    const ratio=pts/maxPts;
+    const msg= ratio>=0.8?rp.endings.high : ratio>=0.4?rp.endings.mid : rp.endings.low;
+    if(ratio>=0.8) confetti();
+    $("#rp-opts-box").innerHTML=`
+      <div class="center">
+        <div class="badge-big">${ratio>=0.8?"💖":ratio>=0.4?"🙂":"😅"}</div>
+        <p style="font-weight:800">${esc(msg)}</p>
+        <p style="font-weight:700;color:var(--muted)">好感度 ${pts} / ${maxPts}</p>
+        <button class="btn small ghost mt8" id="rp-again">🔁 再玩一次</button>
+        <button class="btn pink block mt16" id="rp-fin">完成 Role-Play！</button>
+      </div>`;
+    $("#rp-again").onclick=()=>renderRoleplay(issue);
+    $("#rp-fin").onclick=()=>completeSection(issue,"roleplay",{xp:20+Math.round(ratio*20), data:{score:pts, max:maxPts}});
+  }
+  showTurn();
+}
+
+/* ============ ✍️ Mini Writing ============ */
+function renderWriting(issue){
+  const w=issue.writing;
+  sectionShell(issue,"writing",`
+    <div class="card">
+      <span class="tag">✍️ 80–120 words</span>
+      <p class="mt8" style="font-weight:800">${esc(w.topic)}</p>
+      <div class="eyebrow mt8">寫作鷹架：</div>
+      <ul class="goal-list">${w.guide.map(g=>`<li>📌 ${esc(g)}</li>`).join("")}</ul>
+      <button class="btn small ghost mt8" id="mw-sample">👀 看 Lily 的範例</button>
+      <div class="hidden mt8" id="mw-sample-box" style="white-space:pre-wrap;background:#FBF9FF;border:2px dashed #CFC4E8;border-radius:12px;padding:12px;font-size:14px;font-weight:600"></div>
+    </div>
+    <div class="card">
+      <textarea class="write-area" id="mw-in" placeholder="Hi everyone! My name is..."></textarea>
+      <ul class="checklist" id="mw-check">
+        <li data-r="len"><span class="box"></span><span>字數 80–120（目前 <b id="mw-wc">0</b> 字）</span></li>
+        <li data-r="vocab"><span class="box"></span><span>用到至少 3 個本期單字 <b id="mw-v"></b></span></li>
+        <li data-r="expr"><span class="box"></span><span>用到至少 2 個實用句型 <b id="mw-e"></b></span></li>
+        <li data-r="pp"><span class="box"></span><span>至少 1 句現在完成式（have/has + p.p.）</span></li>
+      </ul>
+      <button class="btn pink block mt16" id="mw-fin" disabled>交出作品 ✉️</button>
+      <p class="center mt8" style="font-size:12px;color:var(--muted);font-weight:700">完成所有檢查項目就能交件！寫完記得截圖或抄下來給老師看 😊</p>
+    </div>`);
+  $("#mw-sample").onclick=()=>{ const b=$("#mw-sample-box"); b.textContent=w.sample; b.classList.toggle("hidden"); };
+  const ta=$("#mw-in");
+  function check(){
+    const txt=ta.value; const low=txt.toLowerCase();
+    const words=txt.trim().split(/\s+/).filter(Boolean).length;
+    const vHits=w.vocab.filter(v=>low.includes(v));
+    const eHits=w.exprs.filter(e=>low.includes(e));
+    const pp=/\b(have|has)\s+(not\s+)?(\w+ed|been|known|met|made|taken|gone|seen|had|done|written|read|spoken|grown|become)\b/i.test(txt);
+    const ok={ len: words>=80&&words<=130, vocab:vHits.length>=3, expr:eHits.length>=2, pp };
+    $("#mw-wc").textContent=words;
+    $("#mw-v").textContent=vHits.length?("("+vHits.join(", ")+")"):"";
+    $("#mw-e").textContent=eHits.length?("("+eHits.length+" 句)"):"";
+    Object.keys(ok).forEach(k=>{
+      const li=document.querySelector('#mw-check li[data-r="'+k+'"]');
+      li.classList.toggle("ok",ok[k]); li.querySelector(".box").textContent=ok[k]?"✓":"";
+    });
+    $("#mw-fin").disabled=!Object.values(ok).every(Boolean);
+  }
+  ta.addEventListener("input",check); check();
+  $("#mw-fin").onclick=()=>{
+    confetti();
+    completeSection(issue,"writing",{xp:40, data:{text:ta.value, words:ta.value.trim().split(/\s+/).length}});
+  };
+}
+
+/* ============ 🏆 Quick Quiz 魔王戰 ============ */
+function renderQuiz(issue){
+  const qz=issue.quiz; const qs=qz.questions;
+  sectionShell(issue,"quiz",`
+    <div class="card center">
+      <div class="badge-big">👾</div>
+      <h2 class="disp">魔王出現了！</h2>
+      <p style="font-weight:700">在 <b>${qz.time} 秒</b>內回答 ${qs.length} 題，每答對一題就打掉魔王一格血！<br>打敗魔王（答對 ${Math.ceil(qs.length*0.66)} 題以上）就能拿到本期徽章 🏅</p>
+      <button class="btn pink block mt16" id="qz-go">⚔️ 開戰！</button>
+    </div>
+    <div id="qz-box"></div>`);
+  $("#qz-go").onclick=start;
+  function start(){
+    let i=0, score=0, left=qz.time, iv=null;
+    stage().querySelector(".card").classList.add("hidden");
+    function head(){
+      return `<div class="boss-bar">
+        <span class="face">${score>=qs.length*0.66?"😵":"👾"}</span>
+        <div class="hp"><div class="fill" style="width:${Math.max(0,100-(score/qs.length*100))}%"></div></div>
+        <span class="timer ${left<=15?"low":""}" id="qz-t">${left}s</span>
+      </div>`;
+    }
+    function show(){
+      const q=qs[i];
+      $("#qz-box").innerHTML=`<div class="card">${head()}
+        <div class="eyebrow">第 ${i+1} / ${qs.length} 題</div>
+        <p class="mt8" style="font-weight:800">${esc(q.q)}</p>
+        <div id="qz-opts">${q.opts.map((o,k)=>`<button class="choice" data-k="${k}">${String.fromCharCode(65+k)}. ${esc(o)}</button>`).join("")}</div>
+      </div>`;
+      $("#qz-opts").onclick=e=>{
+        const b=e.target.closest(".choice"); if(!b) return;
+        document.querySelectorAll("#qz-opts .choice").forEach(x=>x.style.pointerEvents="none");
+        if(+b.dataset.k===q.ans){ b.classList.add("correct"); score++; toast("💥 命中魔王！"); }
+        else{ b.classList.add("wrong");
+          document.querySelector('#qz-opts .choice[data-k="'+q.ans+'"]').classList.add("correct"); }
+        setTimeout(()=>{ i++; if(i<qs.length && left>0) show(); else finish(); }, 800);
+      };
+    }
+    iv=setInterval(()=>{ left--;
+      const t=$("#qz-t"); if(t){ t.textContent=left+"s"; if(left<=15) t.classList.add("low"); }
+      if(left<=0){ clearInterval(iv); finish(); }
+    },1000);
+    function finish(){
+      clearInterval(iv);
+      const win=score>=Math.ceil(qs.length*0.66);
+      if(win) confetti();
+      $("#qz-box").innerHTML=`<div class="card center">
+        <div class="badge-big">${win?"🏅":"💫"}</div>
+        <h2 class="disp">${win?"魔王被打敗了！":"魔王逃走了…"}</h2>
+        <p style="font-weight:700">答對 ${score} / ${qs.length} 題${win?"，獲得 Issue 徽章！":"。複習一下 Word Candy 和 Grammar Bite，再來挑戰！"}</p>
+        ${win?'<button class="btn pink block mt16" id="qz-fin">收下徽章 🏅</button>':'<button class="btn purple block mt16" id="qz-retry">🔁 再挑戰一次</button><button class="btn small ghost mt8" id="qz-back">回地圖複習</button>'}
+      </div>`;
+      if(win) $("#qz-fin").onclick=()=>completeSection(issue,"quiz",{xp:60, data:{score}});
+      else{ $("#qz-retry").onclick=()=>renderQuiz(issue); $("#qz-back").onclick=()=>renderMap(issue); }
+    }
+    show();
+  }
+}
+
+/* ============ 🌍 Real-Life Mission ============ */
+function renderMission(issue){
+  const m=issue.mission; const checked=new Set();
+  sectionShell(issue,"mission",`
+    <div class="card">
+      <span class="tag">🌍 本週任務</span>
+      <p class="mt8" style="font-weight:800">${esc(m.goal)}</p>
+      <div class="eyebrow mt16">任務規則（做到就打勾）：</div>
+      <ul class="checklist" id="ms-rules">
+        ${m.rules.map((r,i)=>`<li data-i="${i}"><span class="box"></span><span>${esc(r)}</span></li>`).join("")}
+      </ul>
+    </div>
+    <div class="card">
+      <div class="eyebrow">MISSION REPORT 任務回報：</div>
+      ${m.report.map((r,i)=>`
+        <p class="mt8" style="font-weight:800;font-size:14px">${esc(r.q)}</p>
+        <input class="name-input ms-in" data-i="${i}" placeholder="...">`).join("")}
+      <button class="btn teal block mt24" id="ms-fin" disabled>🎯 任務完成，打卡！</button>
+      <p class="center mt8" style="font-size:12px;color:var(--muted);font-weight:700">誠實打卡！這是給未來的自己看的紀錄 😉</p>
+    </div>`);
+  function update(){
+    const inputsOk=[...document.querySelectorAll(".ms-in")].filter(i=>i.value.trim().length>=1).length>=m.report.length;
+    $("#ms-fin").disabled=!(checked.size>=m.rules.length && inputsOk);
+  }
+  $("#ms-rules").onclick=e=>{
+    const li=e.target.closest("li"); if(!li) return;
+    const i=li.dataset.i;
+    if(checked.has(i)){ checked.delete(i); li.classList.remove("ok"); li.querySelector(".box").textContent=""; }
+    else{ checked.add(i); li.classList.add("ok"); li.querySelector(".box").textContent="✓"; }
+    update();
+  };
+  document.querySelectorAll(".ms-in").forEach(inp=>inp.addEventListener("input",update));
+  $("#ms-fin").onclick=()=>{
+    const report={}; document.querySelectorAll(".ms-in").forEach(inp=>report[m.report[+inp.dataset.i].q]=inp.value.trim());
+    confetti();
+    completeSection(issue,"mission",{xp:50, candy:3, data:{report}, delay:1200});
+  };
+}
+
+/* ============ 📄 匯出 PDF 給老師討論 ============ */
+function exportIssuePDF(issue){
+  if(!window.jspdf){ toast("PDF 元件載入中，請稍後再試一次"); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:"pt", format:"a4"});
+  const marginX=48, pageH=780; let y=56;
+  function ensure(need){ if(y+need>pageH){ doc.addPage(); y=56; } }
+  function title(t,size){ ensure(size?size+14:22); doc.setFont("helvetica","bold"); doc.setFontSize(size||15);
+    doc.text(String(t),marginX,y); y+=(size||15)+10; doc.setFont("helvetica","normal"); doc.setFontSize(11); }
+  function line(t,indent){ const wrapped=doc.splitTextToSize(String(t||""), 500-(indent||0));
+    wrapped.forEach(l=>{ ensure(15); doc.text(l,marginX+(indent||0),y); y+=15; }); }
+  function spacer(n){ y+=(n||8); }
+
+  title(`English POP! · Issue ${issue.id} — ${issue.title}`,16);
+  line(`學生：${S.student?S.student.name:"—"}　等級：${issue.level}　匯出時間：${new Date().toLocaleString("zh-TW")}`);
+  const p=issueProg(issue.id);
+  const doneCount=SECTIONS.filter(s=>p.done[s.key]).length;
+  line(`完成度：${doneCount} / ${SECTIONS.length} 關 　XP：${S.xp}　連續天數：${S.streak}`);
+  spacer(14);
+
+  SECTIONS.forEach(s=>{
+    const rec=p.done[s.key];
+    title(`${s.emoji} ${s.en}（${s.zh}）`);
+    if(!rec){ line("尚未完成這一關"); spacer(10); return; }
+    switch(s.key){
+      case "warmup":
+        (rec.answers||[]).forEach((a,i)=>{
+          line(`Q${i+1}. ${issue.warmup.questions[i]?issue.warmup.questions[i].q:""}`);
+          line(`→ ${a||"(未作答)"}`, 14); spacer(4); });
+        break;
+      case "cover":
+        line("已閱讀本期文章"); break;
+      case "reading":
+        line(`答對 ${rec.score!=null?rec.score:"-"} / ${issue.reading.length} 題（最佳連擊 ${rec.best||0}）`); break;
+      case "candy":
+        line(`單字配對完成，找出 ${rec.score||0} 組`); break;
+      case "sayit":
+        line(`跟讀練習完成，共 ${rec.score||0} 句`); break;
+      case "grammar":
+        line(`文法拼句挑戰答對 ${rec.score!=null?rec.score:"-"} 題`); break;
+      case "speakup":
+        line(`60 秒口說完成，講了 ${rec.seconds||0} 秒，命中 ${rec.targetsHit||0} 個目標句型`); break;
+      case "roleplay":
+        line(`情境對話完成，好感度 ${rec.score!=null?rec.score:"-"} / ${rec.max||"-"}`); break;
+      case "writing":
+        line(`學生寫作（${rec.words||0} 字）：`); line(rec.text||"(空白)", 14); break;
+      case "quiz":
+        line(`魔王測驗答對 ${rec.score!=null?rec.score:"-"} / ${issue.quiz.questions.length} 題`); break;
+      case "mission":
+        Object.keys(rec.report||{}).forEach(q=>{ line(q); line(`→ ${rec.report[q]||"(未填寫)"}`,14); spacer(4); });
+        break;
+    }
+    spacer(10);
+  });
+  doc.save(`EnglishPOP_Issue${issue.id}_${(S.student&&S.student.name)||"student"}.pdf`);
+  toast("📄 PDF 已匯出！");
+}
+
+/* ============ 啟動 ============ */
+updateHUD();
+loadIssuesFromSheet().then(rows=>{
+  if(rows && rows.length){ ISSUES.length=0; ISSUES.push(...rows); CURRENT_ISSUE=ISSUES[0]; }
+  if(S.student) renderLevels();
+  else renderLogin();
+});
+
+</script>
+</body>
+</html>
