@@ -594,6 +594,15 @@ function parseMission(cell){
     else if(k==="REPORT") m.report=splitSemi(v).map(q=>({q})); });
   return m;
 }
+function parseMistake(cell){
+  const m={dont:"",say:[],why:"",fix:null};
+  splitLines(cell).forEach(l=>{ const {k,v}=kv(l);
+    if(k==="DONT") m.dont=v; else if(k==="SAY") m.say=splitSemi(v);
+    else if(k==="WHY") m.why=v;
+    else if(k==="FIX"){ const [q,optsRaw,ansRaw]=v.split("||").map(x=>(x||"").trim());
+      m.fix={type:"choice", q, opts:splitSemi(optsRaw||""), ans:+ansRaw||0}; } });
+  return m;
+}
 function rowToIssue(row){
   return {
     id:String(row["IssueID"]||"").trim(),
@@ -613,7 +622,8 @@ function rowToIssue(row){
     roleplay:parseRoleplay(row["RolePlay"]),
     writing:parseWriting(row["MiniWriting"]),
     quiz:parseQuiz(row["QuickQuiz"]),
-    mission:parseMission(row["RealLifeMission"])
+    mission:parseMission(row["RealLifeMission"]),
+    mistake:parseMistake(row["CommonMistake"])
   };
 }
 function loadIssuesFromSheet(){
@@ -1328,6 +1338,8 @@ function renderSayIt(issue){
 /* ============ 🧩 Grammar Bite ============ */
 function renderGrammar(issue){
   const g=issue.grammar; let step=-1; let correct=0; const t=newCombo();
+  const mk=issue.mistake||{dont:"",say:[],why:"",fix:null};
+  const hasMistake=!!(mk.dont||mk.say.length||mk.why);
   sectionShell(issue,"grammar",`
     <div class="card">
       <span class="tag">📚 ${esc(g.name)}</span>
@@ -1339,15 +1351,15 @@ function renderGrammar(issue){
       <button class="btn purple block mt16" id="gb-start">開始挑戰 🧩</button>
     </div>
     <div id="gb-box"></div>
-    <div class="card mt16" id="gb-mistake">
+    ${hasMistake ? `<div class="card mt16" id="gb-mistake">
       <div class="eyebrow">🚨 COMMON MISTAKE 常見錯誤</div>
-      <p class="mt8" style="font-weight:800;color:var(--red)">❌ ${esc(issue.mistake.dont)}</p>
-      ${issue.mistake.say.map(s=>`<p style="font-weight:800;color:var(--teal)">✅ ${esc(s)}</p>`).join("")}
-      <p class="mt8" style="font-weight:600;font-size:14px">${esc(issue.mistake.why)}</p>
-    </div>`);
+      <p class="mt8" style="font-weight:800;color:var(--red)">❌ ${esc(mk.dont)}</p>
+      ${mk.say.map(s=>`<p style="font-weight:800;color:var(--teal)">✅ ${esc(s)}</p>`).join("")}
+      <p class="mt8" style="font-weight:600;font-size:14px">${esc(mk.why)}</p>
+    </div>` : ""}`);
   stage().addEventListener("click",e=>{ const b=e.target.closest("[data-say]"); if(b) speak(b.dataset.say); });
   $("#gb-start").onclick=()=>{ $("#gb-start").classList.add("hidden"); step=0; show(); sIV($("#gb-box")); };
-  const practice=g.practice.concat([Object.assign({type:"choice"}, issue.mistake.fix)]);
+  const practice=g.practice.concat(mk.fix ? [mk.fix] : []);
   function show(){
     const p=practice[step];
     comboMark(t);
