@@ -790,6 +790,30 @@ function similarity(a,b){
   let hit=0; wa.forEach(w=>{ if(wb.has(w)) hit++; });
   return hit/wa.length;
 }
+/* ---- 共用麥克風元件：任何文字框都能「用說的」 ---- */
+let ACTIVE_MIC=null;
+function stopAllMic(){ if(ACTIVE_MIC){ try{ ACTIVE_MIC.stop(); }catch(e){} ACTIVE_MIC=null; } }
+function micButton(targetEl, opts){
+  if(!ASR || !targetEl) return null;
+  opts=opts||{};
+  const btn=document.createElement("button");
+  btn.type="button";
+  btn.className="btn small teal mic-inline mt8"+(opts.cls?(" "+opts.cls):"");
+  btn.textContent="🎙️ 用說的";
+  let rec=null;
+  btn.addEventListener("click",()=>{
+    if(rec){ rec.stop(); return; }
+    stopAllMic();
+    btn.textContent="🔴 錄音中…再按一下結束";
+    rec=listen(
+      (fin,inter)=>{ targetEl.value=(fin+inter).trim(); targetEl.dispatchEvent(new Event("input",{bubbles:true})); },
+      ()=>{ rec=null; ACTIVE_MIC=null; btn.textContent="🎙️ 用說的"; if(opts.onEnd) opts.onEnd(); },
+      ()=>{ toast("聽不太清楚，再試一次或改用打字"); }
+    );
+    ACTIVE_MIC=rec;
+  });
+  return btn;
+}
 
 /* ============ 導覽 ============ */
 const AVATARS=["🦊","🐻","🐰","🐱","🐶","🦄","🐸","🐼","🐯","🦁"];
@@ -845,15 +869,18 @@ function renderLogin(){
       <div class="avatar-grid" id="avgrid">${AVATARS.map((a,i)=>`<button data-i="${i}" class="${i===0?'sel':''}">${a}</button>`).join("")}</div>
       <div class="eyebrow mt24">STEP 2 · 你的名字</div>
       <input class="name-input mt8" id="name-in" maxlength="12" placeholder="輸入名字或英文暱稱">
+      <div id="name-mic-slot"></div>
       <button class="btn pink block mt24" id="start-btn">🚀 開始冒險！</button>
     </div>
     <footer class="mini">免費學習資源 · 你的進度會保存在這台裝置上</footer>`;
+  { const nameMic=micButton($("#name-in")); if(nameMic) $("#name-mic-slot").appendChild(nameMic); }
   $("#avgrid").addEventListener("click",e=>{
     const b=e.target.closest("button"); if(!b) return;
     document.querySelectorAll("#avgrid button").forEach(x=>x.classList.remove("sel"));
     b.classList.add("sel"); av=AVATARS[+b.dataset.i];
   });
   $("#start-btn").addEventListener("click",()=>{
+    stopAllMic();
     const name=$("#name-in").value.trim();
     if(!name){ toast("先輸入名字喔！"); return; }
     S.student={name, av}; save(); updateHUD();
@@ -865,7 +892,7 @@ function renderLogin(){
 /* ============ 選等級（4 個世界） ============ */
 function levelStats(tier){
   const list=ISSUES.filter(i=>i.tier===tier);
-  const done=list.filter(i=>S.badges.includes(i.id)).length;
+  const done=list.filter(i=>S.badges.includes(issueKey(i))).length;
   return {count:list.length, done};
 }
 function renderLevels(){
@@ -922,9 +949,10 @@ function renderIssueMap(tier){
       }).join("") || '<p class="center" style="color:var(--muted);font-weight:700">這個等級還沒有 Issue，敬請期待！</p>'}
     </div>
     <footer class="mini">English POP! · 免費非營利英語學習</footer>`;
-  $("#lvl-back").addEventListener("click",renderLevels);
+  $("#lvl-back").addEventListener("click",()=>{ stopAllMic(); renderLevels(); });
   $("#imap").addEventListener("click",e=>{
     const b=e.target.closest("button.node"); if(!b) return;
+    stopAllMic();
     const iss=list.find(x=>x.id===b.dataset.id); if(iss) renderMap(iss);
   });
 }
@@ -972,10 +1000,11 @@ function renderMap(issue){
     ${S.badges.includes(issueKey(issue))?`<div class="center"><span class="done-stamp">🏅 Issue ${esc(issue.id)} 徽章已入手！</span></div>`:""}
     <button class="btn ghost block mt24" id="pdf-btn">📄 匯出 PDF 給老師討論</button>
     <footer class="mini">English POP! · 免費非營利英語學習</footer>`;
-  $("#map-back").addEventListener("click",()=>renderIssueMap(issue.tier||1));
+  $("#map-back").addEventListener("click",()=>{ stopAllMic(); renderIssueMap(issue.tier||1); });
   $("#pdf-btn").addEventListener("click",()=>exportIssuePDF(issue));
   $("#map").addEventListener("click",e=>{
     const b=e.target.closest("button.node"); if(!b||b.disabled) return;
+    stopAllMic();
     renderSection(issue, SECTIONS[+b.dataset.i].key);
   });
 }
@@ -993,7 +1022,7 @@ function sectionShell(issue, key, bodyHTML){
       <div><h2>${esc(meta.en)}</h2><div class="zh">${esc(meta.zh)}</div></div>
     </div>
     <div id="sec-body">${bodyHTML}</div>`;
-  $("#back-btn").addEventListener("click",()=>renderMap(issue));
+  $("#back-btn").addEventListener("click",()=>{ stopAllMic(); renderMap(issue); });
 }
 function renderSection(issue, key){
   window.scrollTo(0,0);
@@ -1057,18 +1086,12 @@ function renderWarmup(issue){
       </div></div>
       <div style="font-size:13px;color:var(--muted);font-weight:700">💡 ${esc(q.hint)}</div>
       <textarea class="write-area mt8" id="wu-in" style="min-height:90px" placeholder="My answer..."></textarea>
-      ${ASR?'<button class="btn small teal mt8" id="wu-mic">🎙️ 用說的</button>':""}
+      <div id="wu-mic-slot"></div>
       <button class="btn pink block mt16" id="wu-next">${i<qs.length-1?"下一題 →":"完成暖身！"}</button>`;
     $("#wu-tts").onclick=()=>speak(q.q);
-    if(ASR){ let rec=null;
-      $("#wu-mic").onclick=function(){
-        if(rec){ rec.stop(); return; }
-        this.textContent="🔴 錄音中… 再按一下結束";
-        rec=listen((fin,inter)=>{ $("#wu-in").value=(fin+inter).trim(); },
-          ()=>{ rec=null; const b=$("#wu-mic"); if(b) b.textContent="🎙️ 用說的"; },
-          ()=>{ toast("聽不太清楚，再試一次或改用打字"); });
-      };}
+    const wuMic=micButton($("#wu-in")); if(wuMic) $("#wu-mic-slot").appendChild(wuMic);
     $("#wu-next").onclick=()=>{
+      stopAllMic();
       const v=$("#wu-in").value.trim();
       if(v.length<2){ toast("寫一點點就好，不用完美！"); return; }
       answers.push(v);
@@ -1087,6 +1110,7 @@ function renderCover(issue){
       <div class="eyebrow">BEFORE YOU READ · 讀前預測</div>
       <p class="mt8" style="font-weight:700">${esc(issue.cover.before)}</p>
       <textarea class="write-area mt8" id="cv-in" style="min-height:70px" placeholder="My guess..."></textarea>
+      <div id="cv-mic-slot"></div>
       <button class="btn purple block mt16" id="cv-go">開始閱讀 📖</button>
     </div>
     <div id="cv-art"></div>
@@ -1098,7 +1122,9 @@ function renderCover(issue){
         <button class="btn pink block mt16" id="cv-done">我讀懂了，完成！</button>
       </div>
     </div>`);
+  { const cvMic=micButton($("#cv-in")); if(cvMic) $("#cv-mic-slot").appendChild(cvMic); }
   $("#cv-go").onclick=()=>{
+    stopAllMic();
     if($("#cv-in").value.trim().length<2){ toast("先猜猜看，猜錯也沒關係！"); return; }
     guessed=true; $("#cv-guess").classList.add("hidden");
     $("#cv-more").classList.remove("hidden"); next();
@@ -1139,11 +1165,14 @@ function renderReading(issue){
             <p style="font-weight:800">${esc(q.q)}</p>
           </div>
           <textarea class="write-area mt8" id="rc-open-in" style="min-height:80px" placeholder="My answer...（這題沒有標準答案，寫寫看你的想法）"></textarea>
+          <div id="rc-mic-slot"></div>
           <button class="btn pink block mt8" id="rc-open-go">送出想法 →</button>
           <div id="rc-fb"></div>
         </div>`;
       $("#rc-tts").onclick=()=>speak(q.q.replace(/^💭.*—/,""));
+      { const rcMic=micButton($("#rc-open-in")); if(rcMic) $("#rc-mic-slot").appendChild(rcMic); }
       $("#rc-open-go").onclick=()=>{
+        stopAllMic();
         $("#rc-open-go").disabled=true;
         $("#rc-fb").innerHTML='<div class="feedback good">💡 很棒的想法！這題沒有標準答案。'+(q.explain?esc(q.explain):"")+'</div>';
         comboAnswer(t,true,1); score++; showCombo();
@@ -1299,16 +1328,18 @@ function renderSayIt(issue){
     if(ev.target.closest(".si-mic")){
       const btn=ev.target.closest(".si-mic"), heard=card.querySelector(".si-heard");
       if(btn._rec){ btn._rec.stop(); return; }
+      stopAllMic();
       heard.classList.remove("hidden"); heard.textContent="🔴 請大聲說： "+e.en;
       btn.textContent="⏹ 結束";
       btn._rec=listen((fin,inter)=>{ heard.textContent=(fin+inter)||"…聽你說…"; },
-        fin=>{ btn._rec=null; btn.textContent="🎙️ 跟讀挑戰";
+        fin=>{ btn._rec=null; ACTIVE_MIC=null; btn.textContent="🎙️ 跟讀挑戰";
           const sim=similarity(e.en, fin);
           const stars= sim>=0.8?3 : sim>=0.5?2 : sim>0?1:0;
           if(stars===0){ heard.textContent="沒聽清楚，再試一次！（也可以改用打字練習）"; return; }
           markDone(card,i,stars);
         },
-        ()=>{ btn._rec=null; btn.textContent="🎙️ 跟讀挑戰"; toast("麥克風沒有回應，可以改用打字練習"); heard.innerHTML='<button class="btn small ghost si-self">✅ 我唸完了（自評）</button>'; });
+        ()=>{ btn._rec=null; ACTIVE_MIC=null; btn.textContent="🎙️ 跟讀挑戰"; toast("麥克風沒有回應，可以改用打字練習"); heard.innerHTML='<button class="btn small ghost si-self">✅ 我唸完了（自評）</button>'; });
+      ACTIVE_MIC=btn._rec;
     }
   });
   list.addEventListener("keydown",ev=>{
@@ -1460,17 +1491,19 @@ function renderSpeakUp(issue){
       if(sec>=95) stopAll();
     },1000);
     if(ASR){
+      stopAllMic();
       $("#su-tr").classList.remove("hidden"); $("#su-tr").textContent="…開始說吧…";
       rec=listen((fin,inter)=>{
         const all=(fin+" "+inter).toLowerCase();
         $("#su-tr").textContent=fin+inter;
         sp.targets.forEach(t=>{ if(all.includes(t)) hits.add(t); });
         drawTargets();
-      },()=>{rec=null;},()=>{});
+      },()=>{rec=null; ACTIVE_MIC=null;},()=>{});
+      ACTIVE_MIC=rec;
     }
   };
   function stopAll(){
-    clearInterval(iv); iv=null; if(rec){rec.stop();rec=null;}
+    clearInterval(iv); iv=null; if(rec){rec.stop();rec=null; ACTIVE_MIC=null;}
     const m=$("#su-mic"); m.classList.remove("rec"); m.textContent="🎙️";
     if(sec>=45) $("#su-fin").classList.remove("hidden");
     else toast("再多說一點！目標是 60 秒 💪");
@@ -1557,6 +1590,7 @@ function renderWriting(issue){
     </div>
     <div class="card">
       <textarea class="write-area" id="mw-in" placeholder="Hi everyone! My name is..."></textarea>
+      <div id="mw-mic-slot"></div>
       <ul class="checklist" id="mw-check">
         <li data-r="len"><span class="box"></span><span>字數 80–120（目前 <b id="mw-wc">0</b> 字）</span></li>
         <li data-r="vocab"><span class="box"></span><span>用到至少 3 個本期單字 <b id="mw-v"></b></span></li>
@@ -1569,6 +1603,7 @@ function renderWriting(issue){
     </div>`);
   $("#mw-sample").onclick=()=>{ const b=$("#mw-sample-box"); b.textContent=w.sample; b.classList.toggle("hidden"); };
   const ta=$("#mw-in");
+  { const mwMic=micButton(ta); if(mwMic) $("#mw-mic-slot").appendChild(mwMic); }
   function check(){
     const txt=ta.value; const low=txt.toLowerCase();
     const words=txt.trim().split(/\s+/).filter(Boolean).length;
@@ -1587,10 +1622,12 @@ function renderWriting(issue){
   }
   ta.addEventListener("input",check); check();
   $("#mw-fin").onclick=()=>{
+    stopAllMic();
     confetti();
     completeSection(issue,"writing",{xp:40, candy:2, data:{text:ta.value, words:ta.value.trim().split(/\s+/).length}});
   };
   $("#mw-skip").onclick=()=>{
+    stopAllMic();
     const ok=confirm("確定要跳過這一關嗎？\n你目前寫的內容會保留下來，並標記讓老師知道你卡住了、需要幫忙喔！");
     if(!ok) return;
     const txt=ta.value;
@@ -1675,10 +1712,15 @@ function renderMission(issue){
       <div class="eyebrow">MISSION REPORT 任務回報：</div>
       ${m.report.map((r,i)=>`
         <p class="mt8" style="font-weight:800;font-size:14px">${esc(r.q)}</p>
-        <input class="name-input ms-in" data-i="${i}" placeholder="...">`).join("")}
+        <input class="name-input ms-in" data-i="${i}" placeholder="...">
+        <div class="ms-mic-slot" data-i="${i}"></div>`).join("")}
       <button class="btn teal block mt24" id="ms-fin" disabled>🎯 任務完成，打卡！</button>
       <p class="center mt8" style="font-size:12px;color:var(--muted);font-weight:700">誠實打卡！這是給未來的自己看的紀錄 😉</p>
     </div>`);
+  document.querySelectorAll(".ms-in").forEach(inp=>{
+    const slot=document.querySelector('.ms-mic-slot[data-i="'+inp.dataset.i+'"]');
+    const b=micButton(inp); if(b && slot) slot.appendChild(b);
+  });
   function update(){
     const inputsOk=[...document.querySelectorAll(".ms-in")].filter(i=>i.value.trim().length>=1).length>=m.report.length;
     $("#ms-fin").disabled=!(checked.size>=m.rules.length && inputsOk);
@@ -1692,6 +1734,7 @@ function renderMission(issue){
   };
   document.querySelectorAll(".ms-in").forEach(inp=>inp.addEventListener("input",update));
   $("#ms-fin").onclick=()=>{
+    stopAllMic();
     const report={}; document.querySelectorAll(".ms-in").forEach(inp=>report[m.report[+inp.dataset.i].q]=inp.value.trim());
     confetti();
     completeSection(issue,"mission",{xp:50, candy:3, data:{report}, delay:1200});
@@ -1873,44 +1916,65 @@ function exportIssuePDF(issue){
     }
   }
 
-  let body = `
+  // 每一個 SECTION 各自算一個「區塊」，分開渲染成獨立的圖片，
+  // 這樣分頁的時候只會整塊搬到下一頁，不會從文字中間硬生生切開。
+  const blocks = [];
+  blocks.push(`
     <div style="font-family:'Baloo 2','Noto Sans TC',sans-serif;font-size:24px;font-weight:800;color:#2B2440">English POP! · Issue ${esc(issue.id)} — ${esc(issue.title)}</div>
     <div style="font-size:13px;color:#6E6684;font-weight:700;margin-top:8px">學生：${esc(S.student?S.student.name:"—")}　等級：${esc(issue.level)}　匯出時間：${new Date().toLocaleString("zh-TW")}</div>
-    <div style="font-size:13px;color:#6E6684;font-weight:700;margin-top:4px">完成度：${doneCount} / ${SECTIONS.length} 關　XP：${S.xp}　連續天數：${S.streak}</div>`;
+    <div style="font-size:13px;color:#6E6684;font-weight:700;margin-top:4px">完成度：${doneCount} / ${SECTIONS.length} 關　XP：${S.xp}　連續天數：${S.streak}</div>`);
 
   SECTIONS.forEach(s=>{
     const rec=p.done[s.key];
-    body += `<div style="margin-top:20px;padding-top:12px;border-top:2px solid #E4DEF2">
+    blocks.push(`<div style="padding-top:12px;border-top:2px solid #E4DEF2">
       <div style="font-size:16px;font-weight:800;color:#2B2440;margin-bottom:6px">${s.emoji} ${esc(s.en)}（${esc(s.zh)}）</div>
       ${rec ? row(s.key,rec) : `<div style="font-size:13px;color:#999">尚未完成這一關</div>`}
-    </div>`;
+    </div>`);
   });
 
-  const wrap=document.createElement("div");
-  wrap.style.cssText="position:fixed;left:-9999px;top:0;width:760px;background:#ffffff;padding:32px;font-family:'Nunito','Noto Sans TC',sans-serif;color:#2B2440;line-height:1.6";
-  wrap.innerHTML = body;
-  document.body.appendChild(wrap);
   toast("📄 產生 PDF 中，請稍候…");
 
-  html2canvas(wrap, {scale:2, backgroundColor:"#ffffff", useCORS:true}).then(canvas=>{
+  const doc = new jsPDF({unit:"pt", format:"a4"});
+  const pageW=doc.internal.pageSize.getWidth(), pageH=doc.internal.pageSize.getHeight();
+  const margin=28, contentW=pageW-margin*2, contentH=pageH-margin*2;
+  const GAP=14;
+  let y=margin, isFirstBlockOnPage=true, needFreshPage=false;
+
+  async function renderBlock(html){
+    const wrap=document.createElement("div");
+    wrap.style.cssText=`position:fixed;left:-9999px;top:0;width:760px;background:#ffffff;padding:0 4px;font-family:'Nunito','Noto Sans TC',sans-serif;color:#2B2440;line-height:1.6`;
+    wrap.innerHTML=html;
+    document.body.appendChild(wrap);
+    const canvas=await html2canvas(wrap, {scale:2, backgroundColor:"#ffffff", useCORS:true});
     document.body.removeChild(wrap);
-    const doc = new jsPDF({unit:"pt", format:"a4"});
-    const pageW=doc.internal.pageSize.getWidth(), pageH=doc.internal.pageSize.getHeight();
-    const margin=24, imgW=pageW-margin*2, imgH=canvas.height*imgW/canvas.width;
-    const imgData=canvas.toDataURL("image/png");
-    let heightLeft=imgH, y=margin;
-    doc.addImage(imgData,"PNG",margin,y,imgW,imgH);
-    heightLeft -= (pageH-margin*2);
-    while(heightLeft > 0){
-      y = margin - (imgH - heightLeft);
-      doc.addPage();
-      doc.addImage(imgData,"PNG",margin,y,imgW,imgH);
-      heightLeft -= (pageH-margin*2);
+    const imgH=canvas.height*contentW/canvas.width;
+    return {imgData:canvas.toDataURL("image/png"), imgH};
+  }
+
+  (async ()=>{
+    for(let i=0;i<blocks.length;i++){
+      const {imgData, imgH} = await renderBlock(blocks[i]);
+      if(needFreshPage){ doc.addPage(); y=margin; isFirstBlockOnPage=true; needFreshPage=false; }
+      if(imgH<=contentH){
+        // 這塊放得下：如果目前頁面剩下空間不夠，先換頁，再整塊放上去
+        if(!isFirstBlockOnPage && y+imgH>margin+contentH){ doc.addPage(); y=margin; }
+        doc.addImage(imgData,"PNG",margin,y,contentW,imgH);
+        y += imgH+GAP; isFirstBlockOnPage=false;
+      } else {
+        // 這塊本身就比一整頁還長（例如超長的寫作內容），只好整塊單獨切頁
+        if(!isFirstBlockOnPage){ doc.addPage(); y=margin; }
+        let heightLeft=imgH, sliceOffset=0;
+        while(heightLeft>0){
+          doc.addImage(imgData,"PNG",margin,margin-sliceOffset,contentW,imgH);
+          heightLeft -= contentH; sliceOffset += contentH;
+          if(heightLeft>0) doc.addPage();
+        }
+        needFreshPage=true;
+      }
     }
     doc.save(`EnglishPOP_Issue${issue.id}_${(S.student&&S.student.name)||"student"}.pdf`);
     toast("📄 PDF 已匯出！");
-  }).catch(err=>{
-    if(wrap.parentNode) document.body.removeChild(wrap);
+  })().catch(err=>{
     console.error(err);
     toast("PDF 匯出失敗，請再試一次");
   });
