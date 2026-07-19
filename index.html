@@ -963,7 +963,7 @@ function renderMap(issue){
         return `<div class="stop ${state} ${side}">
           <button class="node" data-i="${i}" ${state==="locked"?"disabled":""} aria-label="${esc(s.en)}">
             ${state==="locked"?"🔒":s.emoji}
-            ${done?'<span class="check">✅</span>':""}
+            ${done?(p.done[s.key].needsHelp?'<span class="check" title="已跳過，需要老師幫忙">🙋</span>':'<span class="check">✅</span>'):""}
           </button>
           <div class="info"><div class="t">${esc(s.en)}</div><div class="zh">${esc(s.zh)}</div></div>
         </div>`;
@@ -1564,6 +1564,7 @@ function renderWriting(issue){
         <li data-r="pp"><span class="box"></span><span>至少 1 句現在完成式（have/has + p.p.）</span></li>
       </ul>
       <button class="btn pink block mt16" id="mw-fin" disabled>交出作品 ✉️</button>
+      <button class="btn ghost block mt8" id="mw-skip">🙋 卡住了，先跳過並請老師幫忙</button>
       <p class="center mt8" style="font-size:12px;color:var(--muted);font-weight:700">完成所有檢查項目就能交件！寫完記得截圖或抄下來給老師看 😊</p>
     </div>`);
   $("#mw-sample").onclick=()=>{ const b=$("#mw-sample-box"); b.textContent=w.sample; b.classList.toggle("hidden"); };
@@ -1588,6 +1589,13 @@ function renderWriting(issue){
   $("#mw-fin").onclick=()=>{
     confetti();
     completeSection(issue,"writing",{xp:40, candy:2, data:{text:ta.value, words:ta.value.trim().split(/\s+/).length}});
+  };
+  $("#mw-skip").onclick=()=>{
+    const ok=confirm("確定要跳過這一關嗎？\n你目前寫的內容會保留下來，並標記讓老師知道你卡住了、需要幫忙喔！");
+    if(!ok) return;
+    const txt=ta.value;
+    toast("🙋 已跳過，記得下次找老師討論這一題喔！");
+    completeSection(issue,"writing",{xp:10, candy:0, data:{text:txt, words:txt.trim().split(/\s+/).filter(Boolean).length, skipped:true, needsHelp:true}, delay:900});
   };
 }
 
@@ -1854,7 +1862,8 @@ function exportIssuePDF(issue){
       case "grammar": return `<div style="font-size:14px">文法拼句挑戰答對 ${rec.score!=null?rec.score:"-"} 題</div>`;
       case "speakup": return `<div style="font-size:14px">60 秒口說完成，講了 ${rec.seconds||0} 秒，命中 ${rec.targetsHit||0} 個目標句型</div>`;
       case "roleplay": return `<div style="font-size:14px">情境對話完成，好感度 ${rec.score!=null?rec.score:"-"} / ${rec.max||"-"}</div>`;
-      case "writing": return `<div style="font-size:14px;font-weight:700">學生寫作（${rec.words||0} 字）：</div>
+      case "writing": return `${rec.needsHelp?`<div style="font-size:14px;font-weight:800;color:#C2410C;background:#FFF4E8;border:2px dashed #F0B060;border-radius:8px;padding:6px 10px;margin-bottom:6px">⚠️ 學生跳過了這一關，需要老師協助討論！</div>`:""}
+        <div style="font-size:14px;font-weight:700">學生寫作（${rec.words||0} 字）：</div>
         <div style="font-size:14px;margin:2px 0 0 16px;white-space:pre-wrap;color:#333">${esc(rec.text||"(空白)")}</div>`;
       case "quiz": return `<div style="font-size:14px">魔王測驗答對 ${rec.score!=null?rec.score:"-"} / ${issue.quiz.questions.length} 題</div>`;
       case "mission": return Object.keys(rec.report||{}).map(q=>`
