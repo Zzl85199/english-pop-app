@@ -1289,7 +1289,7 @@ function renderCandy(issue){
 
 /* ============ 💬 Say It Naturally ============ */
 function renderSayIt(issue){
-  const ex=issue.expressions; let doneCount=0; const doneSet=new Set();
+  const ex=issue.expressions; let doneCount=0; const doneSet=new Set(); const heardMap={};
   sectionShell(issue,"sayit",`
     <div class="card"><p style="font-weight:700">5 句超實用口語！每一句：先按 🔊 聽示範，再${ASR?"按 🎙️ 大聲跟讀，看看能拿幾顆星":"大聲跟讀 3 次，然後按「我唸完了」"}。不方便開口的話，也可以改用打字練習。</p></div>
     <div id="si-list"></div>
@@ -1319,7 +1319,7 @@ function renderSayIt(issue){
     const i=+card.dataset.i, e=ex[i];
     if(ev.target.closest(".si-tts")) speak(e.en);
     if(ev.target.closest(".si-ex")) speak(e.exA+" ... "+e.exB);
-    if(ev.target.closest(".si-self")){ markDone(card,i,3); }
+    if(ev.target.closest(".si-self")){ heardMap[i]="（學生自評唸完，未使用語音辨識記錄內容）"; markDone(card,i,3); }
     if(ev.target.closest(".si-type")){
       card.querySelector(".si-typebox").classList.toggle("hidden");
       const input=card.querySelector(".si-typein"); if(input) input.focus();
@@ -1336,6 +1336,7 @@ function renderSayIt(issue){
           const sim=similarity(e.en, fin);
           const stars= sim>=0.8?3 : sim>=0.5?2 : sim>0?1:0;
           if(stars===0){ heard.textContent="沒聽清楚，再試一次！（也可以改用打字練習）"; return; }
+          heardMap[i]=fin.trim();
           markDone(card,i,stars);
         },
         ()=>{ btn._rec=null; ACTIVE_MIC=null; btn.textContent="🎙️ 跟讀挑戰"; toast("麥克風沒有回應，可以改用打字練習"); heard.innerHTML='<button class="btn small ghost si-self">✅ 我唸完了（自評）</button>'; });
@@ -1355,6 +1356,7 @@ function renderSayIt(issue){
     const sim=similarity(e.en, val);
     const stars= sim>=0.8?3 : sim>=0.5?2 : sim>0?1:0;
     if(stars===0){ toast("再看一次句子，試著打出完整的句子！"); return; }
+    heardMap[i]=val;
     markDone(card,i,stars);
     card.querySelector(".si-typebox").classList.add("hidden");
   }
@@ -1363,7 +1365,7 @@ function renderSayIt(issue){
     if(!doneSet.has(i)){ doneSet.add(i); doneCount++; toast("完成 "+doneCount+"/"+ex.length+" 句！"); }
     if(doneCount>=ex.length) $("#si-fin").classList.remove("hidden");
   }
-  $("#si-fin").onclick=()=>completeSection(issue,"sayit",{xp:25, candy:1, data:{score:doneCount}});
+  $("#si-fin").onclick=()=>completeSection(issue,"sayit",{xp:25, candy:1, data:{score:doneCount, heard:heardMap}});
 }
 
 /* ============ 🧩 Grammar Bite ============ */
@@ -1477,7 +1479,7 @@ function renderSpeakUp(issue){
     </div>`);
   stage().addEventListener("click",e=>{ const b=e.target.closest("[data-say]"); if(b) speak(b.dataset.say); });
   $("#su-sample").onclick=()=>speak(sp.sample);
-  const tEl=$("#su-timer"); let sec=0, iv=null, rec=null, hits=new Set();
+  const tEl=$("#su-timer"); let sec=0, iv=null, rec=null, hits=new Set(), bankedTranscript="";
   function drawTargets(){
     $("#su-targets").innerHTML="目標句： "+sp.targets.map(t=>hits.has(t)?`<span class="hl">${esc(t)}</span>`:`<span style="color:var(--muted)">${esc(t)}</span>`).join(" · ");
   }
@@ -1492,13 +1494,13 @@ function renderSpeakUp(issue){
     },1000);
     if(ASR){
       stopAllMic();
-      $("#su-tr").classList.remove("hidden"); $("#su-tr").textContent="…開始說吧…";
+      $("#su-tr").classList.remove("hidden"); $("#su-tr").textContent=bankedTranscript||"…開始說吧…";
       rec=listen((fin,inter)=>{
         const all=(fin+" "+inter).toLowerCase();
-        $("#su-tr").textContent=fin+inter;
+        $("#su-tr").textContent=(bankedTranscript+" "+fin+inter).trim();
         sp.targets.forEach(t=>{ if(all.includes(t)) hits.add(t); });
         drawTargets();
-      },()=>{rec=null; ACTIVE_MIC=null;},()=>{});
+      },(finalTxt)=>{ bankedTranscript=(bankedTranscript+" "+finalTxt).trim(); rec=null; ACTIVE_MIC=null; },()=>{});
       ACTIVE_MIC=rec;
     }
   };
@@ -1509,8 +1511,10 @@ function renderSpeakUp(issue){
     else toast("再多說一點！目標是 60 秒 💪");
   }
   $("#su-fin").onclick=()=>{
+    const trEl=$("#su-tr");
+    const transcript = (trEl && trEl.textContent!=="…開始說吧…") ? (trEl.textContent||"").trim() : "";
     stopAll();
-    completeSection(issue,"speakup",{xp:30+hits.size*5, candy:2, data:{seconds:sec, targetsHit:hits.size}});
+    completeSection(issue,"speakup",{xp:30+hits.size*5, candy:2, data:{seconds:sec, targetsHit:hits.size, transcript}});
   };
 }
 
@@ -1901,9 +1905,16 @@ function exportIssuePDF(issue){
       case "cover": return `<div style="font-size:14px">已閱讀本期文章</div>`;
       case "reading": return `<div style="font-size:14px">答對 ${rec.score!=null?rec.score:"-"} / ${issue.reading.length} 題（最佳連擊 ${rec.best||0}）</div>`;
       case "candy": return `<div style="font-size:14px">單字配對完成，找出 ${rec.score||0} 組</div>`;
-      case "sayit": return `<div style="font-size:14px">跟讀練習完成，共 ${rec.score||0} 句</div>`;
+      case "sayit": return `<div style="font-size:14px">跟讀練習完成，共 ${rec.score||0} 句</div>`+
+        (issue.expressions||[]).map((e,i)=> (rec.heard&&rec.heard[i]) ? `
+          <div style="font-size:14px;font-weight:700;margin-top:8px">${esc(e.en)}</div>
+          <div style="font-size:14px;margin:2px 0 0 16px;color:#333">→ 學生說／打了：${esc(rec.heard[i])}</div>` : "").join("");
       case "grammar": return `<div style="font-size:14px">文法拼句挑戰答對 ${rec.score!=null?rec.score:"-"} 題</div>`;
-      case "speakup": return `<div style="font-size:14px">60 秒口說完成，講了 ${rec.seconds||0} 秒，命中 ${rec.targetsHit||0} 個目標句型</div>`;
+      case "speakup": return `<div style="font-size:14px">60 秒口說完成，講了 ${rec.seconds||0} 秒，命中 ${rec.targetsHit||0} 個目標句型</div>${
+        rec.transcript ? `<div style="font-size:14px;font-weight:700;margin-top:6px">學生說了什麼：</div>
+          <div style="font-size:14px;margin:2px 0 0 16px;white-space:pre-wrap;color:#333">${esc(rec.transcript)}</div>`
+        : `<div style="font-size:13px;color:#999;margin-top:6px">（沒有偵測到逐字稿，可能是瀏覽器不支援語音辨識，或這次練習沒有開啟麥克風）</div>`
+      }`;
       case "roleplay": return `<div style="font-size:14px">情境對話完成，好感度 ${rec.score!=null?rec.score:"-"} / ${rec.max||"-"}</div>`;
       case "writing": return `${rec.needsHelp?`<div style="font-size:14px;font-weight:800;color:#C2410C;background:#FFF4E8;border:2px dashed #F0B060;border-radius:8px;padding:6px 10px;margin-bottom:6px">⚠️ 學生跳過了這一關，需要老師協助討論！</div>`:""}
         <div style="font-size:14px;font-weight:700">學生寫作（${rec.words||0} 字）：</div>
